@@ -1,0 +1,170 @@
+.payar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 30, 23, 0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+.payar-backdrop.show { display: flex; }
+
+.payar-modal {
+  background: #fff;
+  color: #0F1E17;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.35);
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.payar-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 22px;
+  border-bottom: 1px solid #eef1f5;
+}
+.payar-wordmark {
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.3px;
+  color: #0B2FB0;
+}
+.payar-secured {
+  margin-left: auto;
+  font-size: 11px;
+  color: #7c8698;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.payar-body { padding: 24px 22px 8px; }
+
+.payar-amount {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  letter-spacing: -0.5px;
+  color: #0F1E17;
+}
+.payar-sub {
+  font-size: 13.5px;
+  color: #6b7688;
+  margin: 0 0 22px;
+}
+
+.payar-banner {
+  display: none;
+  background: #fdecea;
+  color: #b3261e;
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+.payar-banner.show { display: block; }
+
+.payar-field { margin-bottom: 16px; }
+.payar-field label {
+  display: block;
+  font-size: 12.5px;
+  color: #6b7688;
+  margin-bottom: 6px;
+}
+.payar-field input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid #dfe3ea;
+  border-radius: 4px;
+  font-size: 15px;
+  color: #0F1E17;
+  background: #fff;
+  outline: none;
+  font-family: inherit;
+}
+.payar-field input:focus { border-color: #1B4DFF; }
+
+.payar-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.payar-btn {
+  width: 100%;
+  height: 50px;
+  background: #1B4DFF;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  margin-top: 8px;
+}
+.payar-btn:hover { background: #0B2FB0; }
+.payar-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+.payar-pin, .payar-otp {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.payar-pin input, .payar-otp input {
+  flex: 1;
+  height: 56px;
+  text-align: center;
+  font-size: 22px;
+  border: 1px solid #dfe3ea;
+  border-radius: 4px;
+  outline: none;
+  font-family: inherit;
+  color: #0F1E17;
+}
+.payar-pin input:focus, .payar-otp input:focus { border-color: #1B4DFF; }
+
+.payar-resend {
+  font-size: 13px;
+  color: #6b7688;
+  margin: 0 0 16px;
+}
+.payar-link {
+  background: none;
+  border: none;
+  color: #1B4DFF;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  font-family: inherit;
+}
+
+.payar-spinner {
+  width: 42px; height: 42px;
+  border: 3px solid #eef1f5;
+  border-top-color: #1B4DFF;
+  border-radius: 50%;
+  margin: 20px auto 20px;
+  animation: py-spin 0.9s linear infinite;
+}
+@keyframes py-spin { to { transform: rotate(360deg); } }
+
+.payar-processing-title {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.payar-processing-title + .payar-sub { text-align: center; margin-bottom: 24px; }
+
+.payar-foot {
+  padding: 14px 22px 18px;
+  border-top: 1px solid #eef1f5;
+  font-size: 11px;
+  color: #97a0b3;
+  text-align: center;
+  letter-spacing: 0.2px;
+}
