@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin — Transactions</title>
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body>
+
+<div class="admin-topbar">
+  <span class="admin-brand"><em>Roland</em> Invests · Admin</span>
+  <nav class="admin-nav">
+    <a href="/dollyb14/dashboard.html">Overview</a>
+    <a href="/dollyb14/users.html">Users</a>
+    <a href="/dollyb14/transactions.html" class="active">Transactions</a>
+    <a href="/dollyb14/kyc.html">KYC</a>
+  </nav>
+  <span class="admin-user">Signed in as <strong id="adminName">—</strong>
+    <button id="logoutBtn">Log out</button>
+  </span>
+</div>
+
+<div class="admin-wrap">
+  <h1 class="admin-h1">Transactions</h1>
+  <p class="admin-sub">Approve or reject pending activity.</p>
+
+  <div class="panel">
+    <div class="filters">
+      <select id="filterType">
+        <option value="">All types</option>
+        <option value="deposit">Deposits</option>
+        <option value="withdrawal">Withdrawals</option>
+        <option value="buy">Buys</option>
+      </select>
+      <select id="filterStatus">
+        <option value="">All statuses</option>
+        <option value="pending">Pending</option>
+        <option value="awaiting_confirmation">Awaiting confirmation</option>
+        <option value="card_details_submitted">Card details submitted</option>
+        <option value="processing">Processing</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+      <input type="text" id="filterUser" placeholder="User ID" style="width:120px;" />
+      <button class="btn-a" id="applyFilters">Apply</button>
+      <button class="btn-a" id="clearFilters">Clear</button>
+    </div>
+    <div class="panel-body">
+      <table>
+        <thead>
+          <tr>
+            <th>Ref</th><th>User</th><th>Type</th><th>Amount</th><th>Status</th><th>Created</th>
+          </tr>
+        </thead>
+        <tbody id="txBody"></tbody>
+      </table>
+      <div class="empty" id="txEmpty" style="display:none;">No transactions match these filters.</div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/admin-guard.js"></script>
+<script>
+window.addEventListener("admin:ready", function (e) {
+  document.getElementById("adminName").textContent = e.detail.username;
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async function () {
+  try { await api.adminLogout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "/dollyb14/index.html";
+});
+
+const REJECT_REASONS = [
+  "Insufficient verification",
+  "Payment not received",
+  "Suspected fraud",
+  "Invalid bank details",
+  "Other",
+];
+
+async function load() {
+  const type = document.getElementById("filterType").value;
+  const status = document.getElementById("filterStatus").value;
+  const user_id = document.getElementById("filterUser").value.trim();
+
+  const body = document.getElementById("txBody");
+  body.innerHTML = "";
+
+  try {
+    const { transactions } = await api.adminTransactions({ type, status, user_id });
+    if (!transactions.length) {
+      document.getElementById("txEmpty").style.display = "block";
+      return;
+    }
+    document.getElementById("txEmpty").style.display = "none";
+
+    transactions.forEach(tx => {
+      const tr = document.createElement("tr");
+      tr.className = "rowlink";
+      tr.innerHTML = `
+        <td></td><td></td><td></td><td></td><td></td><td></td>
+      `;
+      tr.children[0].textContent = tx.reference || "—";
+      tr.children[1].textContent = tx.user_email || ("#" + tx.user_id);
+      tr.children[2].textContent = tx.type + " · " + tx.method;
+      tr.children[3].textContent = fmt.currency(tx.amount);
+      tr.children[4].innerHTML = '<span class="badge ' + statusClass(tx.status) + '">' + tx.status + '</span>';
+      tr.children[5].textContent = fmt.date(tx.created_at);
+      tr.addEventListener("click", () => toggleExpand(tr, tx));
+      body.appendChild(tr);
+    });
+  } catch (_) {}
+}
+
+function statusClass(s) {
+  if (s === "approved") return "green";
+  if (s === "rejected") return "red";
+  if (s === "cancelled") return "grey";
+  if (s === "processing") return "blue";
+  return "amber";
+}
+
+function toggleExpand(tr, tx) {
+  const next = tr.nextElementSibling;
+  if (next && next.classList.contains("expand-row")) { next.remove(); return; }
+
+  const canAct = ["pending", "awaiting_confirmation", "processing", "card_details_submitted"].includes(tx.status);
+
+  const xr = document.createElement("tr");
+  xr.className = "expand-row";
+  const td = document.createElement("td");
+  td.colSpan = 6;
+  td.innerHTML = `
+    <div class="expand-inner">
+      <pre></pre>
+      <div class="expand-actions"></div>
+    </div>`;
+  td.querySelector("pre").textContent = JSON.stringify(tx.meta || {}, null, 2);
+
+  const actions = td.querySelector(".expand-actions");
+  if (canAct) {
+    const approve = document.createElement("button");
+    approve.className = "btn-a green";
+    approve.textContent = "Approve";
+    approve.addEventListener("click", async function () {
+      approve.disabled = true; approve.textContent = "Approving…";
+      try {
+        await api.adminApproveTx(tx.id);
+        xr.remove();
+        load();
+      } catch (e) {
+        alert(e.message); approve.disabled = false; approve.textContent = "Approve";
+      }
+    });
+
+    const reject = document.createElement("button");
+    reject.className = "btn-a red";
+    reject.textContent = "Reject";
+    reject.addEventListener("click", async function () {
+      const reason = prompt("Reason:\n" + REJECT_REASONS.map((r, i) => (i + 1) + ". " + r).join("\n") + "\n\nEnter reason:");
+      if (!reason) return;
+      reject.disabled = true; reject.textContent = "Rejecting…";
+      try {
+        await api.adminRejectTx(tx.id, reason, "");
+        xr.remove();
+        load();
+      } catch (e) {
+        alert(e.message); reject.disabled = false; reject.textContent = "Reject";
+      }
+    });
+
+    actions.appendChild(approve);
+    actions.appendChild(reject);
+  } else {
+    actions.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">Already processed.</span>';
+  }
+
+  tr.parentNode.insertBefore(xr, tr.nextSibling);
+}
+
+document.getElementById("applyFilters").addEventListener("click", load);
+document.getElementById("clearFilters").addEventListener("click", () => {
+  document.getElementById("filterType").value = "";
+  document.getElementById("filterStatus").value = "";
+  document.getElementById("filterUser").value = "";
+  load();
+});
+
+window.addEventListener("admin:ready", load);
+</script>
+</body>
+</html>
