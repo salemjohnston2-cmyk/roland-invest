@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin — Activity log</title>
+<link rel="stylesheet" href="/css/admin.css" />
+<style>
+  .log-body{max-height:78vh;overflow-y:auto;}
+  .log-row{
+    display:grid;grid-template-columns:160px 120px 220px 1fr;
+    gap:16px;padding:12px 20px;border-bottom:1px solid var(--border);font-size:13px;
+  }
+  .log-row:last-child{border-bottom:none;}
+  .log-row .time{color:var(--text-muted);}
+  .log-row .actor{color:var(--text-soft);}
+  .log-row .action{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:var(--text);}
+  .log-row .meta{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:var(--text-muted);word-break:break-all;}
+  .log-head{display:grid;grid-template-columns:160px 120px 220px 1fr;gap:16px;padding:12px 20px;background:var(--surface-2);border-bottom:1px solid var(--border);}
+  .log-head span{font-size:12px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-muted);font-weight:500;}
+</style>
+</head>
+<body>
+<div class="admin-topbar">
+  <span class="admin-brand"><em>Roland</em> Invests · Admin</span>
+  <nav class="admin-nav">
+    <a href="/dollyb14/dashboard.html">Overview</a>
+    <a href="/dollyb14/users.html">Users</a>
+    <a href="/dollyb14/transactions.html">Transactions</a>
+    <a href="/dollyb14/kyc.html">KYC</a>
+    <a href="/dollyb14/payments.html">Payments</a>
+    <a href="/dollyb14/stocks.html">Stocks</a>
+    <a href="/dollyb14/bank-details.html">Bank details</a>
+    <a href="/dollyb14/content.html">Site content</a>
+    <a href="/dollyb14/activity.html" class="active">Activity</a>
+  </nav>
+  <span class="admin-user">Signed in as <strong id="adminName">—</strong>
+    <button id="logoutBtn">Log out</button>
+  </span>
+</div>
+
+<div class="admin-wrap">
+  <h1 class="admin-h1">Activity log</h1>
+  <p class="admin-sub">Every recorded action across the platform.</p>
+
+  <div class="panel">
+    <div class="log-head">
+      <span>Time</span><span>Actor</span><span>Action</span><span>Detail</span>
+    </div>
+    <div class="log-body" id="logBody"></div>
+    <div class="empty" id="logEmpty" style="display:none;">No activity yet.</div>
+  </div>
+</div>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/admin-guard.js"></script>
+<script>
+window.addEventListener("admin:ready", function (e) {
+  document.getElementById("adminName").textContent = e.detail.username;
+  load();
+});
+document.getElementById("logoutBtn").addEventListener("click", async function () {
+  try { await api.adminLogout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "/dollyb14/index.html";
+});
+
+async function load() {
+  const body = document.getElementById("logBody");
+  body.innerHTML = "";
+  try {
+    const { activity } = await api.adminActivity(200);
+    if (!activity.length) { document.getElementById("logEmpty").style.display = "block"; return; }
+    document.getElementById("logEmpty").style.display = "none";
+    activity.forEach(a => {
+      const row = document.createElement("div");
+      row.className = "log-row";
+      row.innerHTML = `<div class="time"></div><div class="actor"></div><div class="action"></div><div class="meta"></div>`;
+      row.querySelector(".time").textContent = fmt.date(a.created_at);
+      row.querySelector(".actor").textContent = a.actor_type + (a.actor_id ? " #" + a.actor_id : "");
+      row.querySelector(".action").textContent = a.action;
+      row.querySelector(".meta").textContent = a.meta ? JSON.stringify(a.meta) : "";
+      body.appendChild(row);
+    });
+  } catch (_) {}
+}
+</script>
+</body>
+</html>
