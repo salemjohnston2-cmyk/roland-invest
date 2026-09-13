@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin</title>
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body>
+<div class="admin-login-shell">
+  <div class="admin-login-card">
+    <h1>Admin sign-in</h1>
+    <p>Authorised personnel only.</p>
+
+    <div class="admin-login-error" id="err"></div>
+
+    <form id="adminLoginForm" novalidate>
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" autocomplete="username" required />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" autocomplete="current-password" required />
+      </div>
+      <button type="submit" class="btn-a primary" id="submitBtn">Sign in</button>
+    </form>
+  </div>
+</div>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script>
+const err = document.getElementById("err");
+document.getElementById("adminLoginForm").addEventListener("submit", async function (e) {
+  e.preventDefault();
+  err.classList.remove("show");
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  if (!username || !password) { err.textContent = "Enter your credentials."; err.classList.add("show"); return; }
+
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = true; btn.textContent = "Signing in…";
+  try {
+    const res = await api.adminLogin({ username, password });
+    api.setToken(res.token);
+    window.location.href = "/dollyb14/dashboard.html";
+  } catch (e2) {
+    err.textContent = e2.message || "Invalid credentials.";
+    err.classList.add("show");
+    btn.disabled = false; btn.textContent = "Sign in";
+  }
+});
+</script>
+</body>
+</html>
