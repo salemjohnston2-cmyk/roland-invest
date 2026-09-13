@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Transactions</title>
+<link rel="stylesheet" href="/css/app.css" />
+<style>
+  .tx-shell{padding:40px 0 56px;width:100%;max-width:840px;margin:0 auto;}
+  .tx-title{font-family:var(--font-serif);font-weight:600;font-size:26px;margin:0 0 6px;}
+  .tx-sub{color:var(--muted);font-size:14px;margin:0 0 24px;}
+  .filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+  .filters select{
+    height:40px;padding:0 12px;border:1px solid var(--line);border-radius:4px;
+    background:var(--ink-soft);color:var(--paper);font-family:inherit;font-size:13.5px;outline:none;
+  }
+  .tx-list{border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  .tx-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 20px;background:var(--ink-soft);border-bottom:1px solid var(--line);
+    cursor:pointer;
+  }
+  .tx-row:last-child{border-bottom:none;}
+  .tx-row:hover{background:var(--ink-soft-2);}
+  .tx-row .label{font-size:14px;font-weight:500;margin:0 0 4px;}
+  .tx-row .meta{font-size:12.5px;color:var(--muted);}
+  .tx-row .right{text-align:right;}
+  .tx-row .amount{font-size:15px;margin:0 0 4px;}
+  .tx-row .status{font-size:11.5px;padding:3px 8px;border-radius:999px;}
+  .pill-amber{background:rgba(201,162,75,0.15);color:var(--gold);}
+  .pill-green{background:rgba(124,150,131,0.2);color:var(--sage);}
+  .pill-red{background:rgba(201,107,75,0.15);color:var(--red);}
+  .pill-grey{background:rgba(246,243,236,0.08);color:var(--muted);}
+  .pill-blue{background:rgba(27,77,255,0.15);color:#7FA2FF;}
+  .expand{
+    padding:14px 20px 18px;background:var(--ink-soft-2);
+    border-bottom:1px solid var(--line);font-size:13px;color:var(--muted);
+  }
+  .expand pre{
+    background:var(--ink);color:var(--paper);padding:12px 14px;border-radius:4px;
+    font-size:12px;overflow-x:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    margin:0;
+  }
+  .empty{padding:36px 20px;text-align:center;color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:6px;}
+  .load-more{margin:20px auto 0;display:block;}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html" data-brand><em>Roland</em> Invests</a>
+    <a class="logout-link" href="#" id="logoutBtn">Log out</a>
+  </div>
+</header>
+
+<main class="top-align">
+  <div class="wrap tx-shell">
+    <a class="back-link" href="dashboard.html" style="font-size:14px;color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:20px;">← Back to dashboard</a>
+    <h1 class="tx-title">Transactions</h1>
+    <p class="tx-sub">Every deposit, withdrawal, and order on your account.</p>
+
+    <div class="filters">
+      <select id="filterType">
+        <option value="">All types</option>
+        <option value="deposit">Deposits</option>
+        <option value="withdrawal">Withdrawals</option>
+        <option value="buy">Buys</option>
+      </select>
+      <select id="filterStatus">
+        <option value="">All statuses</option>
+        <option value="pending">Pending</option>
+        <option value="awaiting_confirmation">Awaiting confirmation</option>
+        <option value="processing">Processing</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+
+    <div id="listWrap"></div>
+    <button class="btn btn-secondary load-more" id="loadMore" style="display:none;">Load more</button>
+  </div>
+</main>
+
+<footer><div class="wrap"><span data-copyright>© 2026 Roland Invests</span></div></footer>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth-guard.js"></script>
+<script src="/js/site-meta.js"></script>
+<script>
+applySiteMeta("Transactions");
+
+let offset = 0;
+const LIMIT = 20;
+let allTxs = [];
+
+function statusClass(s) {
+  if (s === "approved") return "pill-green";
+  if (s === "rejected") return "pill-red";
+  if (s === "cancelled") return "pill-grey";
+  if (s === "processing" || s === "card_details_submitted") return "pill-blue";
+  return "pill-amber";
+}
+function statusLabel(s) {
+  return {
+    pending: "Awaiting action",
+    awaiting_confirmation: "Awaiting confirmation",
+    processing: "Processing",
+    card_details_submitted: "Payment submitted",
+    approved: "Approved",
+    rejected: "Rejected",
+    cancelled: "Cancelled",
+  }[s] || s;
+}
+function typeLabel(t) {
+  return t === "deposit" ? "Deposit" : t === "withdrawal" ? "Withdrawal" : "Buy";
+}
+
+async function load(reset = false) {
+  if (reset) { offset = 0; allTxs = []; }
+  const type = document.getElementById("filterType").value;
+  const status = document.getElementById("filterStatus").value;
+
+  try {
+    const { transactions, total } = await api.transactions({ limit: LIMIT, offset, type, status });
+    allTxs = allTxs.concat(transactions);
+    offset = allTxs.length;
+    render();
+    document.getElementById("loadMore").style.display = offset < total ? "inline-flex" : "none";
+  } catch (_) {}
+}
+
+function render() {
+  const wrap = document.getElementById("listWrap");
+  if (!allTxs.length) {
+    wrap.innerHTML = '<div class="empty">No transactions yet.</div>';
+    return;
+  }
+  const list = document.createElement("div");
+  list.className = "tx-list";
+  allTxs.forEach(t => {
+    const row = document.createElement("div");
+    row.className = "tx-row";
+    row.innerHTML =
+      '<div><p class="label"></p><p class="meta"></p></div>' +
+      '<div class="right"><p class="amount"></p><p><span class="status ' + statusClass(t.status) + '"></span></p></div>';
+    row.querySelector(".label").textContent = typeLabel(t.type) + " · " + (t.method || "");
+    row.querySelector(".meta").textContent = (t.reference || "") + " · " + fmt.date(t.created_at);
+    row.querySelector(".amount").textContent = fmt.currency(t.amount);
+    row.querySelector(".status").textContent = statusLabel(t.status);
+
+    const expand = document.createElement("div");
+    expand.className = "expand";
+    expand.style.display = "none";
+    const pre = document.createElement("pre");
+    const detail = { reference: t.reference, status: t.status, amount: t.amount, meta: t.meta || {} };
+    if (t.meta && t.meta.rejection_reason) {
+      detail.reason = t.meta.rejection_reason;
+      if (t.meta.rejection_note) detail.note = t.meta.rejection_note;
+    }
+    pre.textContent = JSON.stringify(detail, null, 2);
+    expand.appendChild(pre);
+
+    row.addEventListener("click", () => {
+      expand.style.display = expand.style.display === "none" ? "block" : "none";
+    });
+
+    list.appendChild(row);
+    list.appendChild(expand);
+  });
+  wrap.innerHTML = "";
+  wrap.appendChild(list);
+}
+
+document.getElementById("filterType").addEventListener("change", () => load(true));
+document.getElementById("filterStatus").addEventListener("change", () => load(true));
+document.getElementById("loadMore").addEventListener("click", () => load(false));
+
+window.addEventListener("ri:ready", () => load(true));
+
+document.getElementById("logoutBtn").addEventListener("click", async function (e) {
+  e.preventDefault();
+  try { await api.logout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "login.html";
+});
+</script>
+</body>
+</html>
