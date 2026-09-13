@@ -6,6 +6,7 @@
 <title>Create your account</title>
 <meta name="description" content="Create your account" />
 <link rel="stylesheet" href="/css/app.css" />
+<link rel="stylesheet" href="/css/google-modal.css" />
 </head>
 <body>
 <header class="top">
@@ -22,8 +23,7 @@
 
     <div class="banner error" id="errorBanner"></div>
 
-    <button type="button" class="btn btn-google" id="googleSignup" disabled
-      title="Available in the next build">
+    <button type="button" class="btn btn-google" id="googleSignup">
       <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
         <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.56 2.7-3.87 2.7-6.62z"/>
         <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.58-5.05-3.71H.96v2.33A9 9 0 0 0 9 18z"/>
@@ -84,6 +84,8 @@
 <script src="/js/format.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/site-meta.js"></script>
+<script src="/js/site-brand.js"></script>
+<script src="/js/google-modal.js"></script>
 <script>
 applySiteMeta("Create your account");
 
@@ -95,7 +97,13 @@ function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
 function isValidPhone(v){ return /^0\d{10}$/.test(v.replace(/\s+/g, "")); }
 function setInvalid(el, bad){ el.closest(".field").classList.toggle("invalid", bad); }
 
-document.getElementById("signupForm").addEventListener("submit", async function(e){
+// Google (fake SSO)
+document.getElementById("googleSignup").addEventListener("click", function () {
+  googleModal.open();
+});
+
+// Email signup
+document.getElementById("signupForm").addEventListener("submit", async function (e) {
   e.preventDefault();
   hideError();
 
@@ -112,11 +120,11 @@ document.getElementById("signupForm").addEventListener("submit", async function(
   const confirm = confirmEl.value;
 
   let valid = true;
-  setInvalid(nameEl, !name); if(!name) valid = false;
-  setInvalid(emailEl, !isValidEmail(email)); if(!isValidEmail(email)) valid = false;
-  setInvalid(phoneEl, !isValidPhone(phone)); if(!isValidPhone(phone)) valid = false;
-  setInvalid(passEl, password.length < 8); if(password.length < 8) valid = false;
-  setInvalid(confirmEl, confirm !== password || !confirm); if(confirm !== password || !confirm) valid = false;
+  setInvalid(nameEl, !name); if (!name) valid = false;
+  setInvalid(emailEl, !isValidEmail(email)); if (!isValidEmail(email)) valid = false;
+  setInvalid(phoneEl, !isValidPhone(phone)); if (!isValidPhone(phone)) valid = false;
+  setInvalid(passEl, password.length < 8); if (password.length < 8) valid = false;
+  setInvalid(confirmEl, confirm !== password || !confirm); if (confirm !== password || !confirm) valid = false;
   if (!valid) return;
 
   const btn = document.getElementById("submitBtn");
