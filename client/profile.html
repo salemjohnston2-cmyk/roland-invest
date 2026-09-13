@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Profile</title>
+<link rel="stylesheet" href="/css/app.css" />
+<style>
+  .prof-shell{padding:40px 0 56px;width:100%;max-width:640px;margin:0 auto;}
+  .prof-title{font-family:var(--font-serif);font-weight:600;font-size:26px;margin:0 0 6px;}
+  .prof-sub{color:var(--muted);font-size:14px;margin:0 0 28px;}
+  .section{border:1px solid var(--line);border-radius:6px;background:var(--ink-soft);padding:24px;margin-bottom:20px;}
+  .section h2{font-family:var(--font-serif);font-weight:600;font-size:18px;margin:0 0 16px;}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);font-size:14px;}
+  .row:last-child{border-bottom:none;}
+  .row .k{color:var(--muted);}
+  .bank-item{padding:14px 16px;border:1px solid var(--line);border-radius:4px;margin-bottom:10px;background:var(--ink-soft-2);}
+  .bank-item .top{display:flex;justify-content:space-between;margin-bottom:4px;font-size:14px;font-weight:500;}
+  .bank-item .meta{font-size:12.5px;color:var(--muted);}
+  .bank-item .actions{margin-top:10px;display:flex;gap:12px;font-size:12.5px;}
+  .bank-item .actions button{background:none;border:none;color:var(--gold);cursor:pointer;font-family:inherit;font-size:12.5px;text-decoration:underline;padding:0;}
+  .bank-item .actions button.danger{color:var(--red);}
+  .section-label{font-size:13px;color:var(--muted);margin:0 0 12px;}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html" data-brand><em>Roland</em> Invests</a>
+    <a class="logout-link" href="#" id="logoutBtn">Log out</a>
+  </div>
+</header>
+
+<main class="top-align">
+  <div class="wrap prof-shell">
+    <a class="back-link" href="dashboard.html" style="font-size:14px;color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:20px;">← Back to dashboard</a>
+    <h1 class="prof-title">Profile</h1>
+    <p class="prof-sub">Your account details and saved bank accounts.</p>
+
+    <div class="section">
+      <h2>Personal details</h2>
+      <div class="banner error" id="errorBanner"></div>
+      <div class="field"><label for="pName">Full name</label><input type="text" id="pName" /></div>
+      <div class="field"><label for="pEmail">Email</label><input type="email" id="pEmail" disabled style="opacity:.7;" /></div>
+      <div class="field"><label for="pPhone">Phone</label><input type="tel" id="pPhone" /></div>
+      <button class="btn btn-primary" id="saveProfile" style="width:auto;padding:0 24px;">Save changes</button>
+    </div>
+
+    <div class="section">
+      <h2>Identity verification</h2>
+      <div class="row"><span class="k">Status</span><span id="kycStatus">—</span></div>
+      <a href="kyc.html" class="btn btn-secondary" style="margin-top:14px;width:auto;padding:0 20px;height:40px;font-size:14px;">Manage verification</a>
+    </div>
+
+    <div class="section">
+      <h2>Bank accounts</h2>
+      <div id="bankList"></div>
+      <button class="btn btn-secondary" id="addBankBtn" style="margin-top:14px;width:auto;padding:0 20px;height:40px;font-size:14px;">Add bank account</button>
+
+      <div id="addBankForm" style="display:none;margin-top:18px;padding-top:18px;border-top:1px solid var(--line);">
+        <div class="field"><label for="bBank">Bank name</label><input type="text" id="bBank" /></div>
+        <div class="field"><label for="bAcct">Account number</label><input type="text" id="bAcct" inputmode="numeric" maxlength="10" /></div>
+        <div class="field"><label for="bName">Account name</label><input type="text" id="bName" /></div>
+        <button class="btn btn-primary" id="saveBank" style="width:auto;padding:0 24px;">Add account</button>
+        <button class="btn btn-secondary" id="cancelBank" style="width:auto;padding:0 24px;margin-left:8px;">Cancel</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer><div class="wrap"><span data-copyright>© 2026 Roland Invests</span></div></footer>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth-guard.js"></script>
+<script src="/js/site-meta.js"></script>
+<script>
+applySiteMeta("Profile");
+
+const errorBanner = document.getElementById("errorBanner");
+function showError(m){ errorBanner.textContent = m; errorBanner.classList.add("show"); }
+function hideError(){ errorBanner.classList.remove("show"); }
+
+let user = null;
+
+window.addEventListener("ri:ready", async function (e) {
+  user = e.detail;
+  document.getElementById("pName").value = user.name || "";
+  document.getElementById("pEmail").value = user.email || "";
+  document.getElementById("pPhone").value = user.phone || "";
+  document.getElementById("kycStatus").textContent = user.kyc_status;
+  await loadBanks();
+});
+
+document.getElementById("saveProfile").addEventListener("click", async function () {
+  hideError();
+  this.disabled = true; this.textContent = "Saving…";
+  try {
+    const payload = {
+      name: document.getElementById("pName").value.trim(),
+      phone: document.getElementById("pPhone").value.trim(),
+    };
+    await api.updateProfile(payload);
+    this.textContent = "Saved";
+    setTimeout(() => { this.textContent = "Save changes"; this.disabled = false; }, 1500);
+  } catch (err) {
+    showError(err.message);
+    this.disabled = false; this.textContent = "Save changes";
+  }
+});
+
+async function loadBanks() {
+  try {
+    const { accounts } = await api.bankAccounts();
+    const list = document.getElementById("bankList");
+    list.innerHTML = "";
+    if (!accounts.length) {
+      list.innerHTML = '<p style="color:var(--muted);font-size:14px;margin:0;">No bank accounts saved.</p>';
+      return;
+    }
+    accounts.forEach(a => {
+      const item = document.createElement("div");
+      item.className = "bank-item";
+      item.innerHTML =
+        '<div class="top"><span></span><span></span></div>' +
+        '<div class="meta"></div>' +
+        '<div class="actions"></div>';
+      item.querySelector(".top span:first-child").textContent = a.bank_name;
+      item.querySelector(".top span:last-child").textContent = a.is_default ? "Default" : "";
+      item.querySelector(".meta").textContent = a.account_number + " · " + a.account_name;
+
+      const actions = item.querySelector(".actions");
+      if (!a.is_default) {
+        const defBtn = document.createElement("button");
+        defBtn.textContent = "Make default";
+        defBtn.addEventListener("click", async () => {
+          await api.setDefaultBank(a.id);
+          loadBanks();
+        });
+        actions.appendChild(defBtn);
+      }
+      const rmBtn = document.createElement("button");
+      rmBtn.className = "danger";
+      rmBtn.textContent = "Remove";
+      rmBtn.addEventListener("click", async () => {
+        if (!confirm("Remove this bank account?")) return;
+        try { await api.deleteBankAccount(a.id); loadBanks(); }
+        catch (e) { alert(e.message); }
+      });
+      actions.appendChild(rmBtn);
+
+      list.appendChild(item);
+    });
+  } catch (_) {}
+}
+
+document.getElementById("addBankBtn").addEventListener("click", () => {
+  document.getElementById("addBankForm").style.display = "block";
+});
+document.getElementById("cancelBank").addEventListener("click", () => {
+  document.getElementById("addBankForm").style.display = "none";
+});
+document.getElementById("saveBank").addEventListener("click", async function () {
+  const bank_name = document.getElementById("bBank").value.trim();
+  const account_number = document.getElementById("bAcct").value.trim();
+  const account_name = document.getElementById("bName").value.trim();
+  if (!bank_name || !account_number || !account_name) return alert("All fields required.");
+  if (!/^\d{10}$/.test(account_number)) return alert("Account number must be 10 digits.");
+  this.disabled = true; this.textContent = "Adding…";
+  try {
+    await api.addBankAccount({ bank_name, account_number, account_name });
+    document.getElementById("addBankForm").style.display = "none";
+    document.getElementById("bBank").value = "";
+    document.getElementById("bAcct").value = "";
+    document.getElementById("bName").value = "";
+    await loadBanks();
+  } catch (e) { alert(e.message); }
+  finally { this.disabled = false; this.textContent = "Add account"; }
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async function (e) {
+  e.preventDefault();
+  try { await api.logout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "login.html";
+});
+</script>
+</body>
+</html>
