@@ -4,32 +4,136 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Dashboard</title>
+<meta name="description" content="Dashboard" />
 <link rel="stylesheet" href="/css/app.css" />
+<style>
+  .dash-shell{padding:40px 0 56px;width:100%;}
+  .dash-head{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    margin-bottom:32px;flex-wrap:wrap;gap:20px;
+  }
+  .dash-head h1{font-family:var(--font-serif);font-weight:600;font-size:26px;margin:0 0 6px;}
+  .dash-head p{color:var(--muted);margin:0;font-size:14px;}
+  .logout-link{font-size:13px;color:var(--muted);text-decoration:none;}
+  .logout-link:hover{color:var(--paper);}
+
+  .kyc-banner{
+    display:flex;justify-content:space-between;align-items:center;gap:16px;
+    border:1px solid rgba(201,162,75,0.4);background:rgba(201,162,75,0.06);
+    color:var(--gold);
+    padding:14px 18px;border-radius:6px;margin-bottom:24px;font-size:14px;
+    flex-wrap:wrap;
+  }
+  .kyc-banner a{color:var(--gold);text-decoration:underline;font-weight:500;}
+
+  .balance-card{
+    border:1px solid var(--line);border-radius:6px;
+    background:linear-gradient(135deg,var(--ink-soft-2),var(--ink-soft));
+    padding:26px 28px;margin-bottom:28px;
+  }
+  .balance-card .label{font-size:13px;color:var(--muted);margin-bottom:8px;}
+  .balance-card .amount{font-family:var(--font-serif);font-size:36px;margin:0 0 16px;}
+  .balance-card .actions{display:flex;gap:12px;flex-wrap:wrap;}
+  .balance-card .btn{width:auto;height:42px;padding:0 20px;font-size:14px;}
+
+  .holdings-list, .pending-list{
+    border:1px solid var(--line);border-radius:6px;overflow:hidden;
+    margin-bottom:28px;
+  }
+  .holding-row, .pending-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 20px;background:var(--ink-soft);border-bottom:1px solid var(--line);
+  }
+  .holding-row:last-child, .pending-row:last-child{border-bottom:none;}
+  .holding-row .name{font-size:15px;font-weight:500;margin:0 0 4px;}
+  .holding-row .meta{font-size:12.5px;color:var(--muted);}
+  .holding-row .right{text-align:right;}
+  .holding-row .val{font-size:15px;margin:0 0 4px;}
+  .holding-row .sub{font-size:12.5px;color:var(--muted);}
+
+  .pending-row{font-size:13.5px;}
+  .pending-row .pill{
+    font-size:11.5px;letter-spacing:0.3px;
+    padding:4px 10px;border-radius:999px;
+    background:rgba(201,162,75,0.15);color:var(--gold);
+  }
+
+  .stock-list{border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  .stock-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 20px;background:var(--ink-soft);
+    text-decoration:none;color:var(--paper);
+    border-bottom:1px solid var(--line);
+    transition:background .15s ease;
+  }
+  .stock-row:last-child{border-bottom:none;}
+  .stock-row:hover{background:var(--ink-soft-2);}
+  .stock-row .name{font-size:15px;font-weight:500;margin:0 0 4px;}
+  .stock-row .ticker{font-size:12.5px;color:var(--muted);}
+  .stock-row .right{text-align:right;}
+  .stock-row .price{font-size:15px;margin:0 0 4px;}
+  .stock-row .change{font-size:12.5px;}
+  .up{color:var(--sage);}
+  .down{color:var(--red);}
+  .section-label{font-size:13px;color:var(--muted);margin:0 0 12px;}
+
+  .empty{
+    padding:28px 20px;text-align:center;font-size:14px;color:var(--muted);
+    border:1px dashed var(--line);border-radius:6px;margin-bottom:28px;
+  }
+</style>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="index.html"><em>Roland</em> Invests</a>
-    <a class="top-link" href="#" id="logoutBtn">Log out</a>
+    <a class="brand" href="index.html" data-brand><em>Roland</em> Invests</a>
+    <a class="logout-link" href="#" id="logoutBtn">Log out</a>
   </div>
 </header>
 
 <main class="top-align">
-  <div class="wrap" style="padding:60px 0;">
-    <div class="card">
-      <h1 style="font-family:var(--font-serif); margin:0 0 8px;">Welcome back, <span id="firstName">…</span></h1>
-      <p style="color:var(--muted); margin:0 0 20px;">
-        Stage 2 checkpoint. Your dashboard will be built out in Delivery 2.
-      </p>
-      <p style="color:var(--muted); margin:0;">
-        Balance: <strong id="balance">—</strong>
-      </p>
+  <div class="wrap dash-shell">
+    <div class="dash-head">
+      <div>
+        <h1 id="greeting">Welcome back</h1>
+        <p>Here's how your portfolio is doing today.</p>
+      </div>
     </div>
+
+    <div class="kyc-banner" id="kycBanner" style="display:none;">
+      <span>Complete your identity verification to unlock withdrawals.</span>
+      <a href="kyc.html">Verify now →</a>
+    </div>
+
+    <div class="balance-card">
+      <div class="label">Available balance</div>
+      <p class="amount" id="balance">₦0.00</p>
+      <div class="actions">
+        <a href="deposit.html" class="btn btn-primary">Fund wallet</a>
+        <a href="withdraw.html" class="btn btn-secondary">Withdraw</a>
+      </div>
+    </div>
+
+    <p class="section-label">Pending activity</p>
+    <div id="pendingWrap"></div>
+
+    <p class="section-label">Your holdings</p>
+    <div id="holdingsWrap"></div>
+
+    <p class="section-label">Markets</p>
+    <div class="stock-list" id="stockList"></div>
   </div>
 </main>
 
 <footer>
-  <div class="wrap"><span>&copy; 2026 Roland Invests</span></div>
+  <div class="wrap">
+    <div class="links">
+      <a href="#privacy">Privacy Policy</a>
+      <a href="#terms">Terms of Service</a>
+      <a href="#disclosures">Risk Disclosure</a>
+    </div>
+    <span data-copyright>© 2026 Roland Invests</span>
+  </div>
 </footer>
 
 <script src="/js/config.js"></script>
@@ -40,10 +144,52 @@
 <script>
 applySiteMeta("Dashboard");
 
-window.addEventListener("ri:ready", function (e) {
+window.addEventListener("ri:ready", async function (e) {
   const u = e.detail;
-  document.getElementById("firstName").textContent = (u.name || "").split(" ")[0] || "there";
-  document.getElementById("balance").textContent = fmt.currency(u.balance);
+  document.getElementById("greeting").textContent =
+    "Welcome back, " + (u.name.split(" ")[0] || "there") + ".";
+
+  const balEl = document.getElementById("balance");
+  balEl.textContent = fmt.currency(u.balance);
+
+  if (u.kyc_status !== "approved") {
+    document.getElementById("kycBanner").style.display = "flex";
+  }
+
+  // Featured/markets list
+  try {
+    const { stocks } = await api.stocks();
+    const list = document.getElementById("stockList");
+    list.innerHTML = "";
+    if (!stocks.length) {
+      list.innerHTML = '<div class="empty">No instruments available right now.</div>';
+    } else {
+      stocks.forEach(s => {
+        const row = document.createElement("a");
+        row.className = "stock-row";
+        row.href = "buy.html?symbol=" + encodeURIComponent(s.symbol);
+        const cls = s.change_pct >= 0 ? "up" : "down";
+        const sign = s.change_pct >= 0 ? "▲" : "▼";
+        row.innerHTML =
+          '<div><p class="name"></p><p class="ticker"></p></div>' +
+          '<div class="right"><p class="price"></p><p class="change ' + cls + '"></p></div>';
+        row.querySelector(".name").textContent = s.name;
+        row.querySelector(".ticker").textContent = s.symbol + " · " + s.exchange;
+        row.querySelector(".price").textContent = fmt.currency(s.current_price);
+        row.querySelector(".change").textContent =
+          sign + " " + Math.abs(s.change_pct).toFixed(2) + "%";
+        list.appendChild(row);
+      });
+    }
+  } catch (_) {}
+
+  // Holdings placeholder for now (built fully in Delivery 3 with holdings data)
+  const holdWrap = document.getElementById("holdingsWrap");
+  holdWrap.innerHTML = '<div class="empty">You don\'t own any stocks yet.</div>';
+
+  // Pending activity placeholder
+  const pendWrap = document.getElementById("pendingWrap");
+  pendWrap.innerHTML = '';
 });
 
 document.getElementById("logoutBtn").addEventListener("click", async function (e) {
