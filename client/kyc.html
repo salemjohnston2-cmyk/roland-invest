@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verify your identity</title>
+<link rel="stylesheet" href="/css/app.css" />
+<style>
+  .kyc-shell{padding:40px 0 56px;width:100%;max-width:560px;margin:0 auto;}
+  .kyc-title{font-family:var(--font-serif);font-weight:600;font-size:26px;margin:0 0 6px;}
+  .kyc-sub{color:var(--muted);font-size:14px;margin:0 0 24px;}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:640px){ .two-col{grid-template-columns:1fr;} }
+  .status-card{
+    border:1px solid var(--line);border-radius:6px;background:var(--ink-soft);
+    padding:24px 26px;margin-bottom:20px;
+  }
+  .status-card h2{font-family:var(--font-serif);font-weight:600;font-size:20px;margin:0 0 6px;}
+  .status-card p{color:var(--muted);margin:0 0 4px;font-size:14px;}
+  .status-card.approved{border-color:rgba(124,150,131,0.4);}
+  .status-card.rejected{border-color:rgba(201,107,75,0.4);}
+  .status-card.pending{border-color:rgba(201,162,75,0.4);}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html" data-brand><em>Roland</em> Invests</a>
+    <a class="logout-link" href="#" id="logoutBtn">Log out</a>
+  </div>
+</header>
+
+<main class="top-align">
+  <div class="wrap kyc-shell">
+    <a class="back-link" href="dashboard.html" style="font-size:14px;color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:20px;">← Back to dashboard</a>
+
+    <h1 class="kyc-title">Identity verification</h1>
+    <p class="kyc-sub">Required before you can withdraw funds.</p>
+
+    <div id="statusWrap"></div>
+
+    <div id="formWrap" style="display:none;">
+      <div class="banner error" id="errorBanner"></div>
+
+      <form id="kycForm" novalidate>
+        <div class="field">
+          <label for="full_name">Full legal name</label>
+          <input type="text" id="full_name" required />
+          <div class="field-error">Enter your full legal name.</div>
+        </div>
+
+        <div class="field">
+          <label for="date_of_birth">Date of birth</label>
+          <input type="date" id="date_of_birth" required />
+          <div class="field-error">Enter your date of birth.</div>
+        </div>
+
+        <div class="field">
+          <label for="nin">National Identification Number (NIN)</label>
+          <input type="text" id="nin" inputmode="numeric" maxlength="11" required />
+          <div class="field-hint">11 digits.</div>
+          <div class="field-error">NIN must be 11 digits.</div>
+        </div>
+
+        <div class="field">
+          <label for="address">Residential address</label>
+          <input type="text" id="address" required />
+          <div class="field-error">Enter your address.</div>
+        </div>
+
+        <div class="two-col">
+          <div class="field">
+            <label for="id_type">ID type</label>
+            <select id="id_type" required>
+              <option value="">Select</option>
+              <option value="nin">NIN slip</option>
+              <option value="voters">Voter's card</option>
+              <option value="passport">International passport</option>
+              <option value="drivers">Driver's licence</option>
+            </select>
+            <div class="field-error">Select an ID type.</div>
+          </div>
+          <div class="field">
+            <label for="id_number">ID number</label>
+            <input type="text" id="id_number" required />
+            <div class="field-error">Enter your ID number.</div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="submitBtn" style="margin-top:8px;">Submit for review</button>
+      </form>
+    </div>
+  </div>
+</main>
+
+<footer><div class="wrap"><span data-copyright>© 2026 Roland Invests</span></div></footer>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth-guard.js"></script>
+<script src="/js/site-meta.js"></script>
+<script>
+applySiteMeta("Identity verification");
+
+const errorBanner = document.getElementById("errorBanner");
+function showError(m){ errorBanner.textContent = m; errorBanner.classList.add("show"); }
+function hideError(){ errorBanner.classList.remove("show"); }
+
+async function load() {
+  try {
+    const { submission, kyc_status } = await api.kycGet();
+    const statusWrap = document.getElementById("statusWrap");
+    const formWrap = document.getElementById("formWrap");
+    statusWrap.innerHTML = "";
+    formWrap.style.display = "none";
+
+    if (!submission || kyc_status === "none") {
+      formWrap.style.display = "block";
+      return;
+    }
+
+    const card = document.createElement("div");
+    card.className = "status-card " + submission.status;
+    const title = { pending: "Under review", approved: "Verified", rejected: "Not approved" }[submission.status];
+    const sub = {
+      pending: "We're reviewing your submission. This typically takes a few hours.",
+      approved: "Your identity has been verified. You can now withdraw funds.",
+      rejected: submission.admin_note || "Your submission was not approved. Please check your details and try again.",
+    }[submission.status];
+    card.innerHTML = "<h2></h2><p></p>";
+    card.querySelector("h2").textContent = title;
+    card.querySelector("p").textContent = sub;
+    statusWrap.appendChild(card);
+
+    if (submission.status === "rejected") {
+      formWrap.style.display = "block";
+      // Prefill known fields
+      document.getElementById("full_name").value = submission.full_name;
+      document.getElementById("date_of_birth").value = submission.date_of_birth;
+      document.getElementById("nin").value = submission.nin;
+      document.getElementById("address").value = submission.address;
+      document.getElementById("id_type").value = submission.id_type;
+      document.getElementById("id_number").value = submission.id_number;
+    }
+  } catch (_) {}
+}
+
+document.getElementById("kycForm").addEventListener("submit", async function (e) {
+  e.preventDefault();
+  hideError();
+  const fields = ["full_name", "date_of_birth", "nin", "address", "id_type", "id_number"];
+  const payload = {};
+  let valid = true;
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    const v = el.value.trim();
+    el.closest(".field").classList.toggle("invalid", !v);
+    if (!v) valid = false;
+    payload[id] = v;
+  });
+  if (!/^\d{11}$/.test(payload.nin)) {
+    document.getElementById("nin").closest(".field").classList.add("invalid");
+    valid = false;
+  }
+  if (!valid) return;
+
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = true; btn.textContent = "Submitting…";
+  try {
+    await api.kycSubmit(payload);
+    await load();
+  } catch (err) {
+    showError(err.message);
+    btn.disabled = false; btn.textContent = "Submit for review";
+  }
+});
+
+window.addEventListener("ri:ready", load);
+
+document.getElementById("logoutBtn").addEventListener("click", async function (e) {
+  e.preventDefault();
+  try { await api.logout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "login.html";
+});
+</script>
+</body>
+</html>
