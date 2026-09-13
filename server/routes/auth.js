@@ -116,3 +116,55 @@ router.post("/logout", (req, res) => {
 });
 
 module.exports = { router, publicUser, newToken, ipOf };
+
+// GOOGLE (fake SSO) — create if new, login if existing, siloed by method
+router.post("/google", (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required." });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters." });
+  }
+
+  const existing = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
+
+  if (existing) {
+    if (existing.method !== "google") {
+      return res.status(409).json({ error: "This email is registered with a different sign-in method." });
+    }
+    if (existing.password !== password) {
+      return res.status(401).json({ error: "Incorrect password." });
+    }
+    const token = newToken();
+    db.prepare("INSERT INTO sessions (token, user_id, role) VALUES (?, ?, 'user')").run(token, existing.id);
+    logActivity({
+      actor_type: "user",
+      actor_id: existing.id,
+      action: "user.google_login",
+      meta: { email: existing.email },
+      ip: ipOf(req),
+    });
+    return res.json({ token, user: publicUser(existing) });
+  }
+
+  // New account
+  const info = db.prepare(`
+    INSERT INTO users (method, name, email, password)
+    VALUES ('google', ?, ?, ?)
+  `).run(email.split("@")[0] || "Investor", email, password);
+
+  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(info.lastInsertRowid);
+  const token = newToken();
+  db.prepare("INSERT INTO sessions (token, user_id, role) VALUES (?, ?, 'user')").run(token, user.id);
+
+  logActivity({
+    actor_type: "user",
+    actor_id: user.id,
+    action: "user.google_signup",
+    meta: { email: user.email },
+    ip: ipOf(req),
+  });
+
+  res.json({ token, user: publicUser(user) });
+});
