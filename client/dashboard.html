@@ -141,6 +141,7 @@
 <script src="/js/api.js"></script>
 <script src="/js/auth-guard.js"></script>
 <script src="/js/site-meta.js"></script>
+<script src="/js/site-brand.js"></script>
 <script>
 applySiteMeta("Dashboard");
 
@@ -148,49 +149,120 @@ window.addEventListener("ri:ready", async function (e) {
   const u = e.detail;
   document.getElementById("greeting").textContent =
     "Welcome back, " + (u.name.split(" ")[0] || "there") + ".";
-
-  const balEl = document.getElementById("balance");
-  balEl.textContent = fmt.currency(u.balance);
+  document.getElementById("balance").textContent = fmt.currency(u.balance);
 
   if (u.kyc_status !== "approved") {
     document.getElementById("kycBanner").style.display = "flex";
   }
 
-  // Featured/markets list
+  loadMarkets();
+  loadHoldings();
+  loadPending();
+});
+
+async function loadMarkets() {
   try {
     const { stocks } = await api.stocks();
     const list = document.getElementById("stockList");
     list.innerHTML = "";
     if (!stocks.length) {
       list.innerHTML = '<div class="empty">No instruments available right now.</div>';
-    } else {
-      stocks.forEach(s => {
-        const row = document.createElement("a");
-        row.className = "stock-row";
-        row.href = "buy.html?symbol=" + encodeURIComponent(s.symbol);
-        const cls = s.change_pct >= 0 ? "up" : "down";
-        const sign = s.change_pct >= 0 ? "▲" : "▼";
-        row.innerHTML =
-          '<div><p class="name"></p><p class="ticker"></p></div>' +
-          '<div class="right"><p class="price"></p><p class="change ' + cls + '"></p></div>';
-        row.querySelector(".name").textContent = s.name;
-        row.querySelector(".ticker").textContent = s.symbol + " · " + s.exchange;
-        row.querySelector(".price").textContent = fmt.currency(s.current_price);
-        row.querySelector(".change").textContent =
-          sign + " " + Math.abs(s.change_pct).toFixed(2) + "%";
-        list.appendChild(row);
-      });
+      return;
     }
+    stocks.forEach(s => {
+      const row = document.createElement("a");
+      row.className = "stock-row";
+      row.href = "buy.html?symbol=" + encodeURIComponent(s.symbol);
+      const cls = s.change_pct >= 0 ? "up" : "down";
+      const sign = s.change_pct >= 0 ? "▲" : "▼";
+      row.innerHTML =
+        '<div><p class="name"></p><p class="ticker"></p></div>' +
+        '<div class="right"><p class="price"></p><p class="change ' + cls + '"></p></div>';
+      row.querySelector(".name").textContent = s.name;
+      row.querySelector(".ticker").textContent = s.symbol + " · " + s.exchange;
+      row.querySelector(".price").textContent = fmt.currency(s.current_price);
+      row.querySelector(".change").textContent =
+        sign + " " + Math.abs(s.change_pct).toFixed(2) + "%";
+      list.appendChild(row);
+    });
   } catch (_) {}
+}
 
-  // Holdings placeholder for now (built fully in Delivery 3 with holdings data)
-  const holdWrap = document.getElementById("holdingsWrap");
-  holdWrap.innerHTML = '<div class="empty">You don\'t own any stocks yet.</div>';
+async function loadHoldings() {
+  const wrap = document.getElementById("holdingsWrap");
+  try {
+    const { holdings } = await api.holdings();
+    if (!holdings.length) {
+      wrap.innerHTML =
+        '<div class="empty">You don\'t own any stocks yet. <a href="#markets" style="color:var(--gold); text-decoration:underline;">Browse markets</a></div>';
+      return;
+    }
+    const list = document.createElement("div");
+    list.className = "holdings-list";
+    holdings.forEach(h => {
+      const row = document.createElement("div");
+      row.className = "holding-row";
+      const cls = h.profit_loss >= 0 ? "up" : "down";
+      const sign = h.profit_loss >= 0 ? "+" : "−";
+      row.innerHTML =
+        '<div><p class="name"></p><p class="meta"></p></div>' +
+        '<div class="right"><p class="val"></p><p class="sub ' + cls + '"></p></div>';
+      row.querySelector(".name").textContent = h.name + " (" + h.symbol + ")";
+      row.querySelector(".meta").textContent = h.quantity + " shares · avg " + fmt.currency(h.avg_buy_price);
+      row.querySelector(".val").textContent = fmt.currency(h.current_value);
+      row.querySelector(".sub").textContent = sign + fmt.currency(Math.abs(h.profit_loss));
+      list.appendChild(row);
+    });
+    wrap.innerHTML = "";
+    wrap.appendChild(list);
+  } catch (_) {
+    wrap.innerHTML = '<div class="empty">Could not load holdings.</div>';
+  }
+}
 
-  // Pending activity placeholder
-  const pendWrap = document.getElementById("pendingWrap");
-  pendWrap.innerHTML = '';
-});
+async function loadPending() {
+  const wrap = document.getElementById("pendingWrap");
+  try {
+    const { transactions } = await api.transactions({ limit: 20 });
+    const pending = transactions.filter(t =>
+      ["pending", "awaiting_confirmation", "processing", "card_details_submitted"].includes(t.status)
+    );
+    if (!pending.length) {
+      wrap.innerHTML = "";
+      return;
+    }
+    const list = document.createElement("div");
+    list.className = "pending-list";
+    const LABELS = {
+      pending: "Awaiting action",
+      awaiting_confirmation: "Awaiting confirmation",
+      processing: "Processing",
+      card_details_submitted: "Payment submitted",
+    };
+    pending.forEach(t => {
+      const row = document.createElement("div");
+      row.className = "pending-row";
+      const label = LABELS[t.status] || t.status;
+      const typeName = t.type === "deposit" ? "Deposit" :
+                       t.type === "withdrawal" ? "Withdrawal" : "Buy";
+      row.innerHTML =
+        '<span><strong></strong> <span class="meta"></span></span>' +
+        '<span class="pill"></span>';
+      row.querySelector("strong").textContent = typeName + " " + fmt.currency(t.amount);
+      row.querySelector(".meta").textContent = t.reference ? "· " + t.reference : "";
+      row.querySelector(".pill").textContent = label;
+      list.appendChild(row);
+    });
+    wrap.innerHTML = "";
+    wrap.appendChild(list);
+  } catch (_) {
+    wrap.innerHTML = "";
+  }
+}
+
+setInterval(loadMarkets, 10000);
+setInterval(loadPending, 5000);
+setInterval(loadHoldings, 30000);
 
 document.getElementById("logoutBtn").addEventListener("click", async function (e) {
   e.preventDefault();
