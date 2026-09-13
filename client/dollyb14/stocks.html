@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin — Stocks</title>
+<link rel="stylesheet" href="/css/admin.css" />
+<style>
+  .modal-back{position:fixed;inset:0;background:rgba(15,30,23,0.5);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;}
+  .modal-back.show{display:flex;}
+  .modal{background:#fff;border-radius:8px;width:100%;max-width:520px;padding:24px;box-shadow:0 24px 48px rgba(0,0,0,0.2);}
+  .modal h2{font-size:17px;margin:0 0 16px;}
+  .modal .field{margin-bottom:12px;}
+  .modal label{display:block;font-size:12.5px;color:var(--text-soft);margin-bottom:5px;}
+  .modal input{width:100%;height:38px;padding:0 10px;border:1px solid var(--border);border-radius:5px;font-family:inherit;font-size:13.5px;color:var(--text);outline:none;}
+  .modal input:focus{border-color:var(--gold);}
+  .modal .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .modal .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+  .modal .err{background:var(--red-bg);color:var(--red);padding:9px 12px;border-radius:5px;font-size:12.5px;margin-bottom:12px;display:none;}
+  .modal .err.show{display:block;}
+  .checkrow{display:flex;align-items:center;gap:8px;font-size:13px;margin-top:6px;}
+  .checkrow input{width:auto;height:auto;}
+</style>
+</head>
+<body>
+<div class="admin-topbar">
+  <span class="admin-brand"><em>Roland</em> Invests · Admin</span>
+  <nav class="admin-nav">
+    <a href="/dollyb14/dashboard.html">Overview</a>
+    <a href="/dollyb14/users.html">Users</a>
+    <a href="/dollyb14/transactions.html">Transactions</a>
+    <a href="/dollyb14/kyc.html">KYC</a>
+    <a href="/dollyb14/payments.html">Payments</a>
+    <a href="/dollyb14/stocks.html" class="active">Stocks</a>
+    <a href="/dollyb14/bank-details.html">Bank details</a>
+    <a href="/dollyb14/content.html">Site content</a>
+    <a href="/dollyb14/activity.html">Activity</a>
+  </nav>
+  <span class="admin-user">Signed in as <strong id="adminName">—</strong>
+    <button id="logoutBtn">Log out</button>
+  </span>
+</div>
+
+<div class="admin-wrap">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
+    <div>
+      <h1 class="admin-h1">Stocks</h1>
+      <p class="admin-sub" style="margin:0;">The curated list of instruments shown to users.</p>
+    </div>
+    <button class="btn-a primary" id="addBtn">Add stock</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-body">
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th><th>Name</th><th>Exchange</th>
+            <th>Base</th><th>Range</th><th>Current</th><th>Featured</th><th>Active</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="stockBody"></tbody>
+      </table>
+      <div class="empty" id="emptyMsg" style="display:none;">No stocks yet. Add one to get started.</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back" id="modalBack">
+  <div class="modal">
+    <h2 id="modalTitle">Add stock</h2>
+    <div class="err" id="modalErr"></div>
+    <input type="hidden" id="stockId" />
+    <div class="row">
+      <div class="field"><label for="sSymbol">Symbol</label><input type="text" id="sSymbol" maxlength="12" /></div>
+      <div class="field" style="grid-column:span 2;"><label for="sName">Name</label><input type="text" id="sName" /></div>
+    </div>
+    <div class="field"><label for="sExchange">Exchange</label><input type="text" id="sExchange" placeholder="NGX, NASDAQ, etc." /></div>
+    <div class="field"><label for="sImage">Image URL (optional)</label><input type="text" id="sImage" /></div>
+    <div class="row">
+      <div class="field"><label for="sMin">Min price</label><input type="number" id="sMin" step="0.01" /></div>
+      <div class="field"><label for="sBase">Base price</label><input type="number" id="sBase" step="0.01" /></div>
+      <div class="field"><label for="sMax">Max price</label><input type="number" id="sMax" step="0.01" /></div>
+    </div>
+    <div class="checkrow"><input type="checkbox" id="sFeatured" /><label for="sFeatured" style="margin:0;">Featured on landing page</label></div>
+    <div class="actions">
+      <button class="btn-a" id="modalCancel">Cancel</button>
+      <button class="btn-a primary" id="modalSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/admin-guard.js"></script>
+<script>
+window.addEventListener("admin:ready", function (e) {
+  document.getElementById("adminName").textContent = e.detail.username;
+  load();
+});
+document.getElementById("logoutBtn").addEventListener("click", async function () {
+  try { await api.adminLogout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "/dollyb14/index.html";
+});
+
+async function load() {
+  const body = document.getElementById("stockBody");
+  body.innerHTML = "";
+  try {
+    const { stocks } = await api.adminStocks();
+    if (!stocks.length) { document.getElementById("emptyMsg").style.display = "block"; return; }
+    document.getElementById("emptyMsg").style.display = "none";
+
+    stocks.forEach(s => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td></td><td></td><td></td><td></td><td></td><td></td>
+        <td><span class="badge ${s.is_featured ? "amber" : "grey"}">${s.is_featured ? "Featured" : "—"}</span></td>
+        <td><span class="badge ${s.is_active ? "green" : "grey"}">${s.is_active ? "Active" : "Inactive"}</span></td>
+        <td><button class="btn-a" data-edit>Edit</button></td>`;
+      tr.children[0].textContent = s.symbol;
+      tr.children[1].textContent = s.name;
+      tr.children[2].textContent = s.exchange;
+      tr.children[3].textContent = fmt.currency(s.base_price);
+      tr.children[4].textContent = fmt.currency(s.min_price) + " – " + fmt.currency(s.max_price);
+      tr.children[5].textContent = fmt.currency(s.current_price);
+      tr.querySelector("[data-edit]").addEventListener("click", () => openEdit(s));
+      body.appendChild(tr);
+    });
+  } catch (_) {}
+}
+
+const modalBack = document.getElementById("modalBack");
+const modalErr = document.getElementById("modalErr");
+
+function clearModal() {
+  ["stockId","sSymbol","sName","sExchange","sImage","sMin","sBase","sMax"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el.tagName === "INPUT" && el.type === "checkbox") el.checked = false;
+    else el.value = "";
+  });
+  document.getElementById("sFeatured").checked = false;
+  modalErr.classList.remove("show");
+}
+
+document.getElementById("addBtn").addEventListener("click", () => {
+  clearModal();
+  document.getElementById("modalTitle").textContent = "Add stock";
+  modalBack.classList.add("show");
+});
+document.getElementById("modalCancel").addEventListener("click", () => modalBack.classList.remove("show"));
+modalBack.addEventListener("click", e => { if (e.target === modalBack) modalBack.classList.remove("show"); });
+
+function openEdit(s) {
+  clearModal();
+  document.getElementById("modalTitle").textContent = "Edit stock";
+  document.getElementById("stockId").value = s.id;
+  document.getElementById("sSymbol").value = s.symbol;
+  document.getElementById("sName").value = s.name;
+  document.getElementById("sExchange").value = s.exchange;
+  document.getElementById("sImage").value = s.image_url || "";
+  document.getElementById("sMin").value = s.min_price;
+  document.getElementById("sBase").value = s.base_price;
+  document.getElementById("sMax").value = s.max_price;
+  document.getElementById("sFeatured").checked = !!s.is_featured;
+  modalBack.classList.add("show");
+}
+
+document.getElementById("modalSave").addEventListener("click", async function () {
+  modalErr.classList.remove("show");
+  const id = document.getElementById("stockId").value;
+  const payload = {
+    symbol: document.getElementById("sSymbol").value.trim().toUpperCase(),
+    name: document.getElementById("sName").value.trim(),
+    exchange: document.getElementById("sExchange").value.trim().toUpperCase(),
+    image_url: document.getElementById("sImage").value.trim() || null,
+    min_price: parseFloat(document.getElementById("sMin").value),
+    base_price: parseFloat(document.getElementById("sBase").value),
+    max_price: parseFloat(document.getElementById("sMax").value),
+    is_featured: document.getElementById("sFeatured").checked,
+  };
+  this.disabled = true; this.textContent = "Saving…";
+  try {
+    if (id) await api.adminUpdateStock(id, payload);
+    else await api.adminCreateStock(payload);
+    modalBack.classList.remove("show");
+    load();
+  } catch (e) {
+    modalErr.textContent = e.message; modalErr.classList.add("show");
+  } finally {
+    this.disabled = false; this.textContent = "Save";
+  }
+});
+</script>
+</body>
+</html>
