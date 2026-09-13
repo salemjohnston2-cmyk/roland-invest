@@ -1,0 +1,7 @@
+node_modules/
+server/data/roland.db
+server/data/*.db-journal
+.env
+SEED.md
+.DS_Store
+*.log
