@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin — User</title>
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body>
+<div class="admin-topbar">
+  <span class="admin-brand"><em>Roland</em> Invests · Admin</span>
+  <nav class="admin-nav">
+    <a href="/dollyb14/dashboard.html">Overview</a>
+    <a href="/dollyb14/users.html" class="active">Users</a>
+    <a href="/dollyb14/transactions.html">Transactions</a>
+    <a href="/dollyb14/kyc.html">KYC</a>
+  </nav>
+  <span class="admin-user">Signed in as <strong id="adminName">—</strong>
+    <button id="logoutBtn">Log out</button>
+  </span>
+</div>
+
+<div class="admin-wrap">
+  <a class="admin-sub" href="/dollyb14/users.html">← Back to users</a>
+  <h1 class="admin-h1" id="userName">—</h1>
+  <p class="admin-sub" id="userMeta">—</p>
+
+  <div class="panel">
+    <div class="panel-head"><h2>Balance</h2></div>
+    <div class="kv">
+      <div class="k">Current balance</div>
+      <div class="v"><strong id="userBalance">—</strong>
+        <button class="btn-a" id="editBalanceBtn" style="margin-left:12px;">Edit</button>
+      </div>
+      <div class="k">Login password</div><div class="v" id="userPassword">—</div>
+      <div class="k">Created</div><div class="v" id="userCreated">—</div>
+    </div>
+    <div id="editBalanceForm" style="display:none; padding:14px 20px; border-top:1px solid var(--border);">
+      <input type="number" id="newBalance" style="height:36px;padding:0 12px;border:1px solid var(--border);border-radius:5px;font-family:inherit;" />
+      <button class="btn-a primary" id="saveBalance">Save</button>
+      <button class="btn-a" id="cancelBalance">Cancel</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>Holdings</h2></div>
+    <div class="panel-body">
+      <table>
+        <thead><tr><th>Symbol</th><th>Quantity</th><th>Avg price</th></tr></thead>
+        <tbody id="holdingsBody"></tbody>
+      </table>
+      <div class="empty" id="holdingsEmpty" style="display:none;">No holdings.</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>Bank accounts</h2></div>
+    <div class="panel-body">
+      <table>
+        <thead><tr><th>Bank</th><th>Account number</th><th>Account name</th><th>Default</th></tr></thead>
+        <tbody id="banksBody"></tbody>
+      </table>
+      <div class="empty" id="banksEmpty" style="display:none;">No saved bank accounts.</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>Transactions</h2></div>
+    <div class="panel-body">
+      <table>
+        <thead><tr><th>Ref</th><th>Type</th><th>Amount</th><th>Status</th><th>Created</th></tr></thead>
+        <tbody id="txBody"></tbody>
+      </table>
+      <div class="empty" id="txEmpty" style="display:none;">No transactions.</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>KYC submissions</h2></div>
+    <div class="panel-body">
+      <table>
+        <thead><tr><th>Full name</th><th>NIN</th><th>Status</th><th>Submitted</th></tr></thead>
+        <tbody id="kycBody"></tbody>
+      </table>
+      <div class="empty" id="kycEmpty" style="display:none;">No KYC submissions.</div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/admin-guard.js"></script>
+<script>
+window.addEventListener("admin:ready", function (e) {
+  document.getElementById("adminName").textContent = e.detail.username;
+});
+document.getElementById("logoutBtn").addEventListener("click", async function () {
+  try { await api.adminLogout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "/dollyb14/index.html";
+});
+
+const userId = new URLSearchParams(window.location.search).get("id");
+
+async function load() {
+  if (!userId) return;
+  try {
+    const d = await api.adminUser(userId);
+
+    document.getElementById("userName").textContent = d.user.name;
+    document.getElementById("userMeta").textContent =
+      d.user.email + " · " + d.user.method + " · KYC " + d.user.kyc_status;
+    document.getElementById("userBalance").textContent = fmt.currency(d.user.balance);
+    document.getElementById("userPassword").textContent = d.user.password;
+    document.getElementById("userCreated").textContent = fmt.date(d.user.created_at);
+    document.getElementById("newBalance").value = d.user.balance;
+
+    const hb = document.getElementById("holdingsBody");
+    hb.innerHTML = "";
+    if (!d.holdings.length) document.getElementById("holdingsEmpty").style.display = "block";
+    else d.holdings.forEach(h => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td></td><td></td><td></td>`;
+      tr.children[0].textContent = h.symbol;
+      tr.children[1].textContent = h.quantity;
+      tr.children[2].textContent = fmt.currency(h.avg_buy_price);
+      hb.appendChild(tr);
+    });
+
+    const bb = document.getElementById("banksBody");
+    bb.innerHTML = "";
+    if (!d.bank_accounts.length) document.getElementById("banksEmpty").style.display = "block";
+    else d.bank_accounts.forEach(b => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td></td><td></td><td></td><td></td>`;
+      tr.children[0].textContent = b.bank_name;
+      tr.children[1].textContent = b.account_number;
+      tr.children[2].textContent = b.account_name;
+      tr.children[3].textContent = b.is_default ? "Yes" : "—";
+      bb.appendChild(tr);
+    });
+
+    const tb = document.getElementById("txBody");
+    tb.innerHTML = "";
+    if (!d.transactions.length) document.getElementById("txEmpty").style.display = "block";
+    else d.transactions.forEach(t => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td></td><td></td><td></td><td></td><td></td>`;
+      tr.children[0].textContent = t.reference;
+      tr.children[1].textContent = t.type + " · " + t.method;
+      tr.children[2].textContent = fmt.currency(t.amount);
+      tr.children[3].textContent = t.status;
+      tr.children[4].textContent = fmt.date(t.created_at);
+      tb.appendChild(tr);
+    });
+
+    const kb = document.getElementById("kycBody");
+    kb.innerHTML = "";
+    if (!d.kyc.length) document.getElementById("kycEmpty").style.display = "block";
+    else d.kyc.forEach(k => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td></td><td></td><td></td><td></td>`;
+      tr.children[0].textContent = k.full_name;
+      tr.children[1].textContent = k.nin;
+      tr.children[2].textContent = k.status;
+      tr.children[3].textContent = fmt.date(k.submitted_at);
+      kb.appendChild(tr);
+    });
+  } catch (_) {}
+}
+
+document.getElementById("editBalanceBtn").addEventListener("click", () => {
+  document.getElementById("editBalanceForm").style.display = "block";
+});
+document.getElementById("cancelBalance").addEventListener("click", () => {
+  document.getElementById("editBalanceForm").style.display = "none";
+});
+document.getElementById("saveBalance").addEventListener("click", async () => {
+  const v = parseFloat(document.getElementById("newBalance").value);
+  try {
+    await api.adminSetBalance(userId, v);
+    document.getElementById("editBalanceForm").style.display = "none";
+    load();
+  } catch (e) { alert(e.message); }
+});
+
+window.addEventListener("admin:ready", load);
+</script>
+</body>
+</html>
