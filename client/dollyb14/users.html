@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin — Users</title>
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body>
+<div class="admin-topbar">
+  <span class="admin-brand"><em>Roland</em> Invests · Admin</span>
+  <nav class="admin-nav">
+    <a href="/dollyb14/dashboard.html">Overview</a>
+    <a href="/dollyb14/users.html" class="active">Users</a>
+    <a href="/dollyb14/transactions.html">Transactions</a>
+    <a href="/dollyb14/kyc.html">KYC</a>
+  </nav>
+  <span class="admin-user">Signed in as <strong id="adminName">—</strong>
+    <button id="logoutBtn">Log out</button>
+  </span>
+</div>
+
+<div class="admin-wrap">
+  <h1 class="admin-h1">Users</h1>
+  <p class="admin-sub">Search by name or email. Click a row for full detail.</p>
+
+  <div class="panel">
+    <div class="filters">
+      <input type="text" id="searchInput" placeholder="Search name or email" style="width:260px;" />
+      <button class="btn-a" id="searchBtn">Search</button>
+    </div>
+    <div class="panel-body">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>Email</th><th>Method</th><th>KYC</th><th>Balance</th><th>Created</th></tr>
+        </thead>
+        <tbody id="userBody"></tbody>
+      </table>
+      <div class="empty" id="userEmpty" style="display:none;">No users match.</div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/admin-guard.js"></script>
+<script>
+window.addEventListener("admin:ready", function (e) {
+  document.getElementById("adminName").textContent = e.detail.username;
+});
+document.getElementById("logoutBtn").addEventListener("click", async function () {
+  try { await api.adminLogout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "/dollyb14/index.html";
+});
+
+async function load() {
+  const q = document.getElementById("searchInput").value.trim();
+  const body = document.getElementById("userBody");
+  body.innerHTML = "";
+  try {
+    const { users } = await api.adminUsers(q);
+    if (!users.length) {
+      document.getElementById("userEmpty").style.display = "block";
+      return;
+    }
+    document.getElementById("userEmpty").style.display = "none";
+    users.forEach(u => {
+      const tr = document.createElement("tr");
+      tr.className = "rowlink";
+      tr.innerHTML = `<td></td><td></td><td></td><td></td><td></td><td></td><td></td>`;
+      tr.children[0].textContent = u.id;
+      tr.children[1].textContent = u.name;
+      tr.children[2].textContent = u.email;
+      tr.children[3].innerHTML = '<span class="badge ' + (u.method === "google" ? "blue" : "grey") + '">' + u.method + '</span>';
+      tr.children[4].innerHTML = '<span class="badge ' + kycClass(u.kyc_status) + '">' + u.kyc_status + '</span>';
+      tr.children[5].textContent = fmt.currency(u.balance);
+      tr.children[6].textContent = fmt.date(u.created_at);
+      tr.addEventListener("click", () => window.location.href = "/dollyb14/user.html?id=" + u.id);
+      body.appendChild(tr);
+    });
+  } catch (_) {}
+}
+function kycClass(s) {
+  if (s === "approved") return "green";
+  if (s === "rejected") return "red";
+  if (s === "pending") return "amber";
+  return "grey";
+}
+document.getElementById("searchBtn").addEventListener("click", load);
+document.getElementById("searchInput").addEventListener("keydown", e => { if (e.key === "Enter") load(); });
+window.addEventListener("admin:ready", load);
+</script>
+</body>
+</html>
