@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin — KYC</title>
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body>
+
+<div class="admin-topbar">
+  <span class="admin-brand"><em>Roland</em> Invests · Admin</span>
+  <nav class="admin-nav">
+    <a href="/dollyb14/dashboard.html">Overview</a>
+    <a href="/dollyb14/users.html">Users</a>
+    <a href="/dollyb14/transactions.html">Transactions</a>
+    <a href="/dollyb14/kyc.html" class="active">KYC</a>
+  </nav>
+  <span class="admin-user">Signed in as <strong id="adminName">—</strong>
+    <button id="logoutBtn">Log out</button>
+  </span>
+</div>
+
+<div class="admin-wrap">
+  <h1 class="admin-h1">KYC submissions</h1>
+  <p class="admin-sub">Pending submissions appear first.</p>
+
+  <div class="panel">
+    <div class="filters">
+      <select id="filterStatus">
+        <option value="">All</option>
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+      </select>
+      <button class="btn-a" id="apply">Apply</button>
+    </div>
+    <div class="panel-body">
+      <table>
+        <thead><tr><th>User</th><th>Full name</th><th>NIN</th><th>Submitted</th><th>Status</th></tr></thead>
+        <tbody id="kycBody"></tbody>
+      </table>
+      <div class="empty" id="kycEmpty" style="display:none;">No KYC submissions match this filter.</div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/admin-guard.js"></script>
+<script>
+window.addEventListener("admin:ready", function (e) {
+  document.getElementById("adminName").textContent = e.detail.username;
+});
+document.getElementById("logoutBtn").addEventListener("click", async function () {
+  try { await api.adminLogout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "/dollyb14/index.html";
+});
+
+async function load() {
+  const status = document.getElementById("filterStatus").value;
+  const body = document.getElementById("kycBody");
+  body.innerHTML = "";
+  try {
+    const { submissions } = await api.adminKyc(status);
+    if (!submissions.length) {
+      document.getElementById("kycEmpty").style.display = "block";
+      return;
+    }
+    document.getElementById("kycEmpty").style.display = "none";
+
+    submissions.forEach(s => {
+      const tr = document.createElement("tr");
+      tr.className = "rowlink";
+      tr.innerHTML = `<td></td><td></td><td></td><td></td><td></td>`;
+      tr.children[0].textContent = s.user_email || ("#" + s.user_id);
+      tr.children[1].textContent = s.full_name;
+      tr.children[2].textContent = s.nin;
+      tr.children[3].textContent = fmt.date(s.submitted_at);
+      tr.children[4].innerHTML = '<span class="badge ' + statusClass(s.status) + '">' + s.status + '</span>';
+      tr.addEventListener("click", () => expand(tr, s));
+      body.appendChild(tr);
+    });
+  } catch (_) {}
+}
+
+function statusClass(s) {
+  if (s === "approved") return "green";
+  if (s === "rejected") return "red";
+  return "amber";
+}
+
+function expand(tr, s) {
+  const next = tr.nextElementSibling;
+  if (next && next.classList.contains("expand-row")) { next.remove(); return; }
+
+  const xr = document.createElement("tr");
+  xr.className = "expand-row";
+  const td = document.createElement("td");
+  td.colSpan = 5;
+  td.innerHTML = `
+    <div class="expand-inner">
+      <div class="kv">
+        <div class="k">Date of birth</div><div class="v"></div>
+        <div class="k">Address</div><div class="v"></div>
+        <div class="k">ID type</div><div class="v"></div>
+        <div class="k">ID number</div><div class="v"></div>
+        <div class="k">Admin note</div><div class="v"></div>
+      </div>
+      <div class="expand-actions"></div>
+    </div>`;
+  const vs = td.querySelectorAll(".kv .v");
+  vs[0].textContent = s.date_of_birth;
+  vs[1].textContent = s.address;
+  vs[2].textContent = s.id_type;
+  vs[3].textContent = s.id_number;
+  vs[4].textContent = s.admin_note || "—";
+
+  const actions = td.querySelector(".expand-actions");
+  if (s.status === "pending") {
+    const ap = document.createElement("button");
+    ap.className = "btn-a green"; ap.textContent = "Approve";
+    ap.addEventListener("click", async () => {
+      ap.disabled = true; ap.textContent = "Approving…";
+      try { await api.adminApproveKyc(s.id); xr.remove(); load(); }
+      catch (e) { alert(e.message); ap.disabled = false; ap.textContent = "Approve"; }
+    });
+
+    const rj = document.createElement("button");
+    rj.className = "btn-a red"; rj.textContent = "Reject";
+    rj.addEventListener("click", async () => {
+      const reason = prompt("Reason for rejection:");
+      if (!reason) return;
+      rj.disabled = true; rj.textContent = "Rejecting…";
+      try { await api.adminRejectKyc(s.id, reason, ""); xr.remove(); load(); }
+      catch (e) { alert(e.message); rj.disabled = false; rj.textContent = "Reject"; }
+    });
+
+    actions.appendChild(ap);
+    actions.appendChild(rj);
+  } else {
+    actions.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">Reviewed.</span>';
+  }
+
+  tr.parentNode.insertBefore(xr, tr.nextSibling);
+}
+
+document.getElementById("apply").addEventListener("click", load);
+window.addEventListener("admin:ready", load);
+</script>
+</body>
+</html>
