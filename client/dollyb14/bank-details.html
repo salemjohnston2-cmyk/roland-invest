@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin — Bank details</title>
+<link rel="stylesheet" href="/css/admin.css" />
+<style>
+  .bd-card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:24px;max-width:520px;}
+  .bd-card .field{margin-bottom:16px;}
+  .bd-card label{display:block;font-size:12.5px;color:var(--text-soft);margin-bottom:6px;}
+  .bd-card input{width:100%;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:5px;font-family:inherit;font-size:14px;color:var(--text);outline:none;}
+  .bd-card input:focus{border-color:var(--gold);}
+  .bd-msg{padding:10px 12px;border-radius:5px;font-size:13px;margin-bottom:14px;display:none;}
+  .bd-msg.ok{background:var(--green-bg);color:var(--green);display:block;}
+  .bd-msg.err{background:var(--red-bg);color:var(--red);display:block;}
+</style>
+</head>
+<body>
+<div class="admin-topbar">
+  <span class="admin-brand"><em>Roland</em> Invests · Admin</span>
+  <nav class="admin-nav">
+    <a href="/dollyb14/dashboard.html">Overview</a>
+    <a href="/dollyb14/users.html">Users</a>
+    <a href="/dollyb14/transactions.html">Transactions</a>
+    <a href="/dollyb14/kyc.html">KYC</a>
+    <a href="/dollyb14/payments.html">Payments</a>
+    <a href="/dollyb14/stocks.html">Stocks</a>
+    <a href="/dollyb14/bank-details.html" class="active">Bank details</a>
+    <a href="/dollyb14/content.html">Site content</a>
+    <a href="/dollyb14/activity.html">Activity</a>
+  </nav>
+  <span class="admin-user">Signed in as <strong id="adminName">—</strong>
+    <button id="logoutBtn">Log out</button>
+  </span>
+</div>
+
+<div class="admin-wrap">
+  <h1 class="admin-h1">Bank details</h1>
+  <p class="admin-sub">The platform account users transfer to when funding their wallet.</p>
+
+  <div class="bd-card">
+    <div class="bd-msg" id="msg"></div>
+    <div class="field"><label for="bankName">Bank name</label><input type="text" id="bankName" /></div>
+    <div class="field"><label for="acctName">Account name</label><input type="text" id="acctName" /></div>
+    <div class="field"><label for="acctNum">Account number</label><input type="text" id="acctNum" inputmode="numeric" maxlength="10" /></div>
+    <button class="btn-a primary" id="saveBtn">Save</button>
+  </div>
+</div>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/admin-guard.js"></script>
+<script>
+window.addEventListener("admin:ready", async function (e) {
+  document.getElementById("adminName").textContent = e.detail.username;
+  try {
+    const { bank } = await api.adminBankDetails();
+    if (bank) {
+      document.getElementById("bankName").value = bank.bank_name;
+      document.getElementById("acctName").value = bank.account_name;
+      document.getElementById("acctNum").value = bank.account_number;
+    }
+  } catch (_) {}
+});
+document.getElementById("logoutBtn").addEventListener("click", async function () {
+  try { await api.adminLogout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "/dollyb14/index.html";
+});
+
+document.getElementById("saveBtn").addEventListener("click", async function () {
+  const msg = document.getElementById("msg");
+  msg.className = "bd-msg";
+  const payload = {
+    bank_name: document.getElementById("bankName").value.trim(),
+    account_name: document.getElementById("acctName").value.trim(),
+    account_number: document.getElementById("acctNum").value.trim(),
+  };
+  if (!payload.bank_name || !payload.account_name || !payload.account_number) {
+    msg.textContent = "All fields required."; msg.className = "bd-msg err"; return;
+  }
+  this.disabled = true; this.textContent = "Saving…";
+  try {
+    await api.adminUpdateBankDetails(payload);
+    msg.textContent = "Saved."; msg.className = "bd-msg ok";
+  } catch (e) {
+    msg.textContent = e.message; msg.className = "bd-msg err";
+  } finally {
+    this.disabled = false; this.textContent = "Save";
+  }
+});
+</script>
+</body>
+</html>
