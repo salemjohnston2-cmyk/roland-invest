@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dashboard</title>
+<link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html"><em>Roland</em> Invests</a>
+    <a class="top-link" href="#" id="logoutBtn">Log out</a>
+  </div>
+</header>
+
+<main class="top-align">
+  <div class="wrap" style="padding:60px 0;">
+    <div class="card">
+      <h1 style="font-family:var(--font-serif); margin:0 0 8px;">Welcome back, <span id="firstName">…</span></h1>
+      <p style="color:var(--muted); margin:0 0 20px;">
+        Stage 2 checkpoint. Your dashboard will be built out in Delivery 2.
+      </p>
+      <p style="color:var(--muted); margin:0;">
+        Balance: <strong id="balance">—</strong>
+      </p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap"><span>&copy; 2026 Roland Invests</span></div>
+</footer>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth-guard.js"></script>
+<script src="/js/site-meta.js"></script>
+<script>
+applySiteMeta("Dashboard");
+
+window.addEventListener("ri:ready", function (e) {
+  const u = e.detail;
+  document.getElementById("firstName").textContent = (u.name || "").split(" ")[0] || "there";
+  document.getElementById("balance").textContent = fmt.currency(u.balance);
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async function (e) {
+  e.preventDefault();
+  try { await api.logout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "login.html";
+});
+</script>
+</body>
+</html>
