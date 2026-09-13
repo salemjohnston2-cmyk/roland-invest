@@ -3,9 +3,13 @@ const cors = require("cors");
 
 const { db, migrate } = require("./db");
 const { seed } = require("./seed");
+const { startFluctuation } = require("./fluctuate");
 
 const { router: authRoutes } = require("./routes/auth");
 const { router: meRoutes } = require("./routes/me");
+const { router: stocksRoutes } = require("./routes/stocks");
+const { router: contentRoutes } = require("./routes/content");
+const { router: depositRoutes } = require("./routes/deposit");
 
 migrate();
 seed();
@@ -20,7 +24,7 @@ const origins = (process.env.CORS_ORIGIN || "http://localhost:3000,http://localh
 
 app.use(cors({
   origin: function (origin, cb) {
-    if (!origin) return cb(null, true); // curl / server-to-server
+    if (!origin) return cb(null, true);
     if (origins.includes(origin) || origins.includes("*")) return cb(null, true);
     return cb(null, false);
   },
@@ -36,13 +40,14 @@ app.get("/health", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/me", meRoutes);
+app.use("/api/stocks", stocksRoutes);
+app.use("/api/content", contentRoutes);
+app.use("/api/deposit", depositRoutes);
 
-// Fallback
-app.use((req, res) => {
-  res.status(404).json({ error: "Not found." });
-});
+app.use((req, res) => res.status(404).json({ error: "Not found." }));
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log("Roland Invests API listening on port " + PORT);
+  startFluctuation();
 });
