@@ -6,6 +6,7 @@
 <title>Log in</title>
 <meta name="description" content="Log in" />
 <link rel="stylesheet" href="/css/app.css" />
+<link rel="stylesheet" href="/css/google-modal.css" />
 </head>
 <body>
 <header class="top">
@@ -22,8 +23,7 @@
 
     <div class="banner error" id="errorBanner"></div>
 
-    <button type="button" class="btn btn-google" id="googleLogin" disabled
-      title="Available in the next build">
+    <button type="button" class="btn btn-google" id="googleLogin">
       <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
         <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.56 2.7-3.87 2.7-6.62z"/>
         <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.58-5.05-3.71H.96v2.33A9 9 0 0 0 9 18z"/>
@@ -65,6 +65,8 @@
 <script src="/js/format.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/site-meta.js"></script>
+<script src="/js/site-brand.js"></script>
+<script src="/js/google-modal.js"></script>
 <script>
 applySiteMeta("Log in");
 
@@ -72,7 +74,13 @@ const errorBanner = document.getElementById("errorBanner");
 function showError(msg){ errorBanner.textContent = msg; errorBanner.classList.add("show"); }
 function hideError(){ errorBanner.classList.remove("show"); }
 
-document.getElementById("loginForm").addEventListener("submit", async function(e){
+// Google (fake SSO)
+document.getElementById("googleLogin").addEventListener("click", function () {
+  googleModal.open();
+});
+
+// Email login
+document.getElementById("loginForm").addEventListener("submit", async function (e) {
   e.preventDefault();
   hideError();
 
@@ -82,8 +90,8 @@ document.getElementById("loginForm").addEventListener("submit", async function(e
   const password = passEl.value;
 
   let valid = true;
-  emailEl.closest(".field").classList.toggle("invalid", !email); if(!email) valid = false;
-  passEl.closest(".field").classList.toggle("invalid", !password); if(!password) valid = false;
+  emailEl.closest(".field").classList.toggle("invalid", !email); if (!email) valid = false;
+  passEl.closest(".field").classList.toggle("invalid", !password); if (!password) valid = false;
   if (!valid) return;
 
   const btn = document.getElementById("submitBtn");
