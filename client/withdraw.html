@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Withdraw</title>
+<link rel="stylesheet" href="/css/app.css" />
+<style>
+  .wd-shell{padding:40px 0 56px;width:100%;max-width:560px;margin:0 auto;}
+  .wd-title{font-family:var(--font-serif);font-weight:600;font-size:26px;margin:0 0 6px;}
+  .wd-sub{color:var(--muted);font-size:14px;margin:0 0 24px;}
+  .bank-list{border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:16px;}
+  .bank-item{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 18px;background:var(--ink-soft);border-bottom:1px solid var(--line);
+    cursor:pointer;
+  }
+  .bank-item:last-child{border-bottom:none;}
+  .bank-item.selected{background:var(--ink-soft-2);border-left:3px solid var(--gold);}
+  .bank-item .name{font-size:14px;font-weight:500;margin:0 0 4px;}
+  .bank-item .acct{font-size:12.5px;color:var(--muted);}
+  .bank-item .default-pill{font-size:11px;color:var(--gold);padding:2px 6px;border-radius:99px;background:rgba(201,162,75,0.15);margin-left:6px;}
+  .amount-input{
+    width:100%;height:64px;padding:0 18px;
+    background:var(--ink-soft);border:1px solid var(--line);border-radius:6px;
+    color:var(--paper);font-size:24px;font-family:var(--font-serif);outline:none;
+  }
+  .amount-input:focus{border-color:var(--gold);}
+  .amount-hint{font-size:12.5px;color:var(--muted);margin:8px 0 22px;}
+  .kyc-block{
+    border:1px solid rgba(201,162,75,0.4);background:rgba(201,162,75,0.06);
+    color:var(--gold);padding:16px 18px;border-radius:6px;margin-bottom:24px;font-size:14px;
+  }
+  .kyc-block a{color:var(--gold);text-decoration:underline;font-weight:500;}
+  .success-shell{text-align:center;padding:64px 0;max-width:440px;margin:0 auto;}
+  .success-icon{width:64px;height:64px;border-radius:50%;background:var(--sage);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;}
+  .success-shell h1{font-family:var(--font-serif);font-size:26px;margin:0 0 10px;}
+  .success-shell p{color:var(--muted);margin:0 0 30px;font-size:15px;}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html" data-brand><em>Roland</em> Invests</a>
+    <a class="logout-link" href="#" id="logoutBtn">Log out</a>
+  </div>
+</header>
+
+<main class="top-align" id="withdrawView">
+  <div class="wrap wd-shell">
+    <a class="back-link" href="dashboard.html" style="font-size:14px;color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:20px;">← Back to dashboard</a>
+    <h1 class="wd-title">Withdraw funds</h1>
+    <p class="wd-sub">Move money from your wallet to your bank account.</p>
+
+    <div id="kycBlock" class="kyc-block" style="display:none;">
+      Complete your identity verification before withdrawing.
+      <a href="kyc.html">Verify now →</a>
+    </div>
+
+    <div class="banner error" id="errorBanner"></div>
+
+    <div class="field" style="margin-bottom:0;">
+      <label for="amount">Amount</label>
+      <input type="number" id="amount" class="amount-input" placeholder="0.00" min="100" step="100" />
+    </div>
+    <p class="amount-hint">Available: <span id="balanceHint">₦0.00</span> · Minimum ₦100</p>
+
+    <p class="section-label">Send to</p>
+    <div id="bankWrap"></div>
+
+    <button class="btn btn-primary" id="submitWithdraw" style="margin-top:8px;">Request withdrawal</button>
+  </div>
+</main>
+
+<main class="top-align" id="successView" style="display:none;">
+  <div class="wrap">
+    <div class="success-shell">
+      <div class="success-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <path d="M5 12.5l4.5 4.5L19 7.5" stroke="#0F1E17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h1>Withdrawal requested</h1>
+      <p id="successDetail">Reviews typically take 1–2 business days.</p>
+      <a href="dashboard.html" class="btn btn-primary" style="width:auto;padding:0 28px;">Back to dashboard</a>
+    </div>
+  </div>
+</main>
+
+<footer><div class="wrap"><span data-copyright>© 2026 Roland Invests</span></div></footer>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth-guard.js"></script>
+<script src="/js/site-meta.js"></script>
+<script>
+applySiteMeta("Withdraw");
+
+const errorBanner = document.getElementById("errorBanner");
+function showError(m){ errorBanner.textContent = m; errorBanner.classList.add("show"); }
+function hideError(){ errorBanner.classList.remove("show"); }
+
+let user = null;
+let accounts = [];
+let selectedId = null;
+
+window.addEventListener("ri:ready", async function (e) {
+  user = e.detail;
+  document.getElementById("balanceHint").textContent = fmt.currency(user.balance);
+
+  if (user.kyc_status !== "approved") {
+    document.getElementById("kycBlock").style.display = "block";
+    document.getElementById("submitWithdraw").disabled = true;
+  }
+
+  await loadAccounts();
+});
+
+async function loadAccounts() {
+  try {
+    const { accounts: list } = await api.bankAccounts();
+    accounts = list;
+    const wrap = document.getElementById("bankWrap");
+    wrap.innerHTML = "";
+
+    if (!list.length) {
+      wrap.innerHTML =
+        '<div class="kyc-block">You have no bank accounts saved. ' +
+        '<a href="profile.html">Add one on your profile →</a></div>';
+      document.getElementById("submitWithdraw").disabled = true;
+      return;
+    }
+
+    const box = document.createElement("div");
+    box.className = "bank-list";
+    const defaultAcct = list.find(a => a.is_default) || list[0];
+    selectedId = defaultAcct.id;
+
+    list.forEach(a => {
+      const item = document.createElement("div");
+      item.className = "bank-item" + (a.id === selectedId ? " selected" : "");
+      item.innerHTML =
+        '<div><p class="name"></p><p class="acct"></p></div>';
+      item.querySelector(".name").innerHTML = "";
+      const nameEl = item.querySelector(".name");
+      nameEl.textContent = a.bank_name;
+      if (a.is_default) {
+        const pill = document.createElement("span");
+        pill.className = "default-pill";
+        pill.textContent = "Default";
+        nameEl.appendChild(pill);
+      }
+      item.querySelector(".acct").textContent = a.account_number + " · " + a.account_name;
+      item.addEventListener("click", () => {
+        selectedId = a.id;
+        document.querySelectorAll(".bank-item").forEach(i => i.classList.remove("selected"));
+        item.classList.add("selected");
+      });
+      box.appendChild(item);
+    });
+    wrap.appendChild(box);
+  } catch (_) {}
+}
+
+document.getElementById("submitWithdraw").addEventListener("click", async function () {
+  hideError();
+  const amount = parseFloat(document.getElementById("amount").value);
+  if (!amount || amount <= 0) return showError("Enter a valid amount.");
+  if (amount > user.balance) return showError("Amount exceeds your available balance.");
+  if (!selectedId) return showError("Select a bank account.");
+
+  this.disabled = true; this.textContent = "Submitting…";
+  try {
+    await api.withdrawInitiate({ amount, bank_account_id: selectedId });
+    document.getElementById("withdrawView").style.display = "none";
+    document.getElementById("successView").style.display = "flex";
+  } catch (err) {
+    showError(err.message);
+    this.disabled = false; this.textContent = "Request withdrawal";
+  }
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async function (e) {
+  e.preventDefault();
+  try { await api.logout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "login.html";
+});
+</script>
+</body>
+</html>
