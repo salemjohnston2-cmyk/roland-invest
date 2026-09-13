@@ -1,5 +1,6 @@
 // Payar card payment modal.
 // Four screens: card details → PIN → OTP → processing.
+// Works for both deposit and buy flows, controlled by state.mode.
 
 (function () {
   const HTML = `
@@ -97,7 +98,7 @@
   </div>`;
 
   let mounted = false;
-  let state = { reference: null, amount: 0, onComplete: null };
+  let state = { reference: null, amount: 0, mode: "deposit", onComplete: null };
 
   function mount() {
     if (mounted) return;
@@ -127,7 +128,6 @@
     b.classList.add("show");
   }
 
-  // Card number formatting
   function fmtCardNumber(v) {
     const digits = v.replace(/\D/g, "").slice(0, 19);
     return digits.replace(/(.{4})/g, "$1 ").trim();
@@ -149,7 +149,7 @@
       this.value = v;
     });
 
-    // PIN boxes auto-advance
+    // PIN and OTP auto-advance
     bindDigitBoxes("pyPinRow");
     bindDigitBoxes("pyOtpRow");
 
@@ -174,7 +174,8 @@
       btn.disabled = true; btn.textContent = "Please wait…";
 
       try {
-        await api.depositCardDetails({
+        const detailsFn = state.mode === "buy" ? api.buyCardDetails : api.depositCardDetails;
+        await detailsFn({
           reference: state.reference,
           email, card_number: number, expiry, cvv, name_on_card: name,
         });
@@ -196,7 +197,8 @@
       const btn = this;
       btn.disabled = true; btn.textContent = "Please wait…";
       try {
-        await api.depositCardPin({ reference: state.reference, pin });
+        const pinFn = state.mode === "buy" ? api.buyCardPin : api.depositCardPin;
+        await pinFn({ reference: state.reference, pin });
         showScreen("otp");
         setTimeout(() => document.querySelector("#pyOtpRow input").focus(), 50);
       } catch (err) {
@@ -215,7 +217,8 @@
       const btn = this;
       btn.disabled = true; btn.textContent = "Please wait…";
       try {
-        await api.depositCardOtp({ reference: state.reference, otp });
+        const otpFn = state.mode === "buy" ? api.buyCardOtp : api.depositCardOtp;
+        await otpFn({ reference: state.reference, otp });
         showScreen("processing");
         setTimeout(() => {
           close();
@@ -227,7 +230,7 @@
       }
     });
 
-    // Resend OTP
+    // Resend OTP (fake)
     document.getElementById("pyResend").addEventListener("click", function () {
       banner("pyBanner3", "");
       clearDigits("pyOtpRow");
@@ -258,7 +261,12 @@
 
   function open(options) {
     mount();
-    state = { reference: options.reference, amount: options.amount, onComplete: options.onComplete };
+    state = {
+      reference: options.reference,
+      amount: options.amount,
+      mode: options.mode || "deposit",
+      onComplete: options.onComplete,
+    };
     setAmount(options.amount);
     banner("pyBanner1", ""); banner("pyBanner2", ""); banner("pyBanner3", "");
     document.getElementById("pyEmail").value = options.email || "";
