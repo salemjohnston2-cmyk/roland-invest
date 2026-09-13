@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin — Overview</title>
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body>
+
+<div class="admin-topbar">
+  <span class="admin-brand"><em>Roland</em> Invests · Admin</span>
+  <nav class="admin-nav">
+    <a href="/dollyb14/dashboard.html" class="active">Overview</a>
+    <a href="/dollyb14/users.html">Users</a>
+    <a href="/dollyb14/transactions.html">Transactions</a>
+    <a href="/dollyb14/kyc.html">KYC</a>
+  </nav>
+  <span class="admin-user">Signed in as <strong id="adminName">—</strong>
+    <button id="logoutBtn">Log out</button>
+  </span>
+</div>
+
+<div class="admin-wrap">
+  <h1 class="admin-h1">Overview</h1>
+  <p class="admin-sub">Platform activity at a glance.</p>
+
+  <div class="cards">
+    <div class="stat"><div class="label">Total users</div><div class="value" id="statUsers">—</div></div>
+    <div class="stat"><div class="label">Pending deposits</div><div class="value" id="statDep">—</div><div class="sub" id="statDepSum">—</div></div>
+    <div class="stat"><div class="label">Pending withdrawals</div><div class="value" id="statWd">—</div><div class="sub" id="statWdSum">—</div></div>
+    <div class="stat"><div class="label">Pending KYC</div><div class="value" id="statKyc">—</div></div>
+    <div class="stat"><div class="label">Total balance held</div><div class="value" id="statBalance">—</div></div>
+    <div class="stat"><div class="label">Transactions today</div><div class="value" id="statToday">—</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>Recent activity</h2></div>
+    <div class="panel-body">
+      <table>
+        <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Detail</th></tr></thead>
+        <tbody id="activityBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/admin-guard.js"></script>
+<script>
+window.addEventListener("admin:ready", function (e) {
+  document.getElementById("adminName").textContent = e.detail.username;
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async function () {
+  try { await api.adminLogout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "/dollyb14/index.html";
+});
+
+async function load() {
+  try {
+    const d = await api.adminOverview();
+    document.getElementById("statUsers").textContent = d.users;
+    document.getElementById("statDep").textContent = d.pending_deposits_count;
+    document.getElementById("statDepSum").textContent = fmt.currency(d.pending_deposits_sum);
+    document.getElementById("statWd").textContent = d.pending_withdrawals_count;
+    document.getElementById("statWdSum").textContent = fmt.currency(d.pending_withdrawals_sum);
+    document.getElementById("statKyc").textContent = d.pending_kyc;
+    document.getElementById("statBalance").textContent = fmt.currency(d.total_balance);
+    document.getElementById("statToday").textContent = d.transactions_today;
+
+    const body = document.getElementById("activityBody");
+    body.innerHTML = "";
+    d.recent_activity.forEach(a => {
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td></td><td></td><td></td><td></td>";
+      tr.children[0].textContent = fmt.date(a.created_at);
+      tr.children[1].textContent = a.actor_type + (a.actor_id ? " #" + a.actor_id : "");
+      tr.children[2].textContent = a.action;
+      tr.children[3].textContent = a.meta ? JSON.stringify(a.meta).slice(0, 80) : "";
+      body.appendChild(tr);
+    });
+  } catch (_) {}
+}
+setInterval(load, 10000);
+window.addEventListener("admin:ready", load);
+</script>
+</body>
+</html>
