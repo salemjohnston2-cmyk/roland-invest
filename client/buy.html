@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Buy shares</title>
+<link rel="stylesheet" href="/css/app.css" />
+<link rel="stylesheet" href="/css/payar-modal.css" />
+<style>
+  .buy-shell{padding:40px 0 56px;width:100%;max-width:560px;margin:0 auto;}
+  .back-link{font-size:14px;color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:20px;}
+  .back-link:hover{color:var(--paper);}
+  .stock-summary{display:flex;justify-content:space-between;align-items:center;margin-bottom:26px;}
+  .stock-summary h1{font-family:var(--font-serif);font-size:24px;margin:0 0 4px;font-weight:600;}
+  .stock-summary .ticker{color:var(--muted);font-size:13px;}
+  .stock-summary .price{text-align:right;}
+  .stock-summary .price .now{font-size:20px;}
+  .stock-summary .price .change{font-size:13px;margin-top:2px;}
+  .up{color:var(--sage);}
+  .down{color:var(--red);}
+  .qty-row{display:flex;align-items:center;gap:14px;margin-bottom:8px;}
+  .qty-stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:4px;background:var(--ink-soft);}
+  .qty-stepper button{
+    width:44px;height:48px;background:transparent;border:none;color:var(--paper);
+    font-size:18px;cursor:pointer;font-family:inherit;
+  }
+  .qty-stepper input{
+    width:60px;height:48px;text-align:center;background:transparent;border:none;
+    color:var(--paper);font-size:15px;font-family:inherit;outline:none;
+  }
+  .total-row{display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-top:1px solid var(--line);margin:20px 0 24px;font-size:15px;}
+  .total-row .val{font-family:var(--font-serif);font-size:22px;}
+
+  .pay-tabs{display:flex;gap:10px;margin-bottom:20px;}
+  .pay-tab{flex:1;text-align:center;padding:14px 10px;border:1px solid var(--line);border-radius:4px;cursor:pointer;font-size:14px;color:var(--muted);background:var(--ink-soft);}
+  .pay-tab.active{border-color:var(--gold);color:var(--paper);}
+  .pay-panel{display:none;}
+  .pay-panel.active{display:block;}
+
+  .bank-details{border:1px dashed var(--line);border-radius:6px;padding:18px 20px;margin-bottom:18px;}
+  .bank-row{display:flex;justify-content:space-between;padding:8px 0;font-size:14px;border-bottom:1px solid var(--line);}
+  .bank-row:last-child{border-bottom:none;}
+  .bank-row .k{color:var(--muted);}
+  .copy-btn{background:none;border:none;color:var(--gold);font-size:12.5px;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;}
+
+  .countdown{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-radius:6px;background:rgba(201,162,75,0.08);border:1px solid rgba(201,162,75,0.3);color:var(--gold);font-size:13.5px;margin-bottom:18px;}
+  .countdown.warn{background:rgba(201,107,75,0.08);border-color:rgba(201,107,75,0.4);color:var(--red);}
+  .countdown .time{font-family:var(--font-serif);font-size:20px;font-weight:600;}
+
+  .success-shell{text-align:center;padding:64px 0;max-width:440px;margin:0 auto;}
+  .success-icon{width:64px;height:64px;border-radius:50%;background:var(--sage);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;}
+  .success-shell h1{font-family:var(--font-serif);font-size:26px;margin:0 0 10px;}
+  .success-shell p{color:var(--muted);margin:0 0 30px;font-size:15px;}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html" data-brand><em>Roland</em> Invests</a>
+    <a class="logout-link" href="#" id="logoutBtn">Log out</a>
+  </div>
+</header>
+
+<main class="top-align" id="buyView">
+  <div class="wrap buy-shell">
+    <a class="back-link" href="dashboard.html">← Back to dashboard</a>
+
+    <div class="stock-summary">
+      <div>
+        <h1 id="stockName">—</h1>
+        <span class="ticker" id="stockTicker">—</span>
+      </div>
+      <div class="price">
+        <div class="now" id="stockPrice">—</div>
+        <div class="change" id="stockChange">—</div>
+      </div>
+    </div>
+
+    <div class="banner error" id="errorBanner"></div>
+
+    <div class="field">
+      <label for="qty">Number of shares</label>
+      <div class="qty-row">
+        <div class="qty-stepper">
+          <button type="button" id="qtyMinus">−</button>
+          <input type="number" id="qty" value="10" min="1" />
+          <button type="button" id="qtyPlus">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="total-row">
+      <span>Total cost</span>
+      <span class="val" id="total">₦0.00</span>
+    </div>
+
+    <p class="section-label">Pay with</p>
+    <div class="pay-tabs">
+      <div class="pay-tab active" data-tab="transfer">Bank transfer</div>
+      <div class="pay-tab" data-tab="card">Card payment</div>
+    </div>
+
+    <div class="pay-panel active" id="panel-transfer">
+      <div class="countdown" id="countdown">
+        <span>Reference expires in</span>
+        <span class="time" id="countdownTime">05:00</span>
+      </div>
+      <div class="bank-details">
+        <div class="bank-row"><span class="k">Bank</span><span id="bankName">—</span></div>
+        <div class="bank-row"><span class="k">Account name</span><span id="bankAccountName">—</span></div>
+        <div class="bank-row">
+          <span class="k">Account number</span>
+          <span><span id="bankAccountNumber">—</span>
+            <button class="copy-btn" id="copyAcct" type="button">Copy</button>
+          </span>
+        </div>
+        <div class="bank-row"><span class="k">Reference</span><span id="bankRef">—</span></div>
+      </div>
+      <p class="field-hint" style="margin-bottom:20px;">Transfer the exact amount using the reference code above.</p>
+      <button class="btn btn-primary" id="confirmTransfer">I've made the transfer</button>
+    </div>
+
+    <div class="pay-panel" id="panel-card">
+      <p class="field-hint" style="margin-bottom:20px;">You'll be redirected to our secure card processor.</p>
+      <button class="btn btn-primary" id="payWithCard">Pay with card</button>
+    </div>
+  </div>
+</main>
+
+<main class="top-align" id="successView" style="display:none;">
+  <div class="wrap">
+    <div class="success-shell">
+      <div class="success-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 12.5l4.5 4.5L19 7.5" stroke="#0F1E17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h1 id="successTitle">Order submitted</h1>
+      <p id="successDetail">We'll process your order once confirmed.</p>
+      <a href="dashboard.html" class="btn btn-primary" style="width:auto;padding:0 28px;">Back to dashboard</a>
+    </div>
+  </div>
+</main>
+
+<footer><div class="wrap"><span data-copyright>© 2026 Roland Invests</span></div></footer>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth-guard.js"></script>
+<script src="/js/site-meta.js"></script>
+<script src="/js/payar-modal.js"></script>
+<script>
+applySiteMeta("Buy shares");
+
+const errorBanner = document.getElementById("errorBanner");
+function showError(m){ errorBanner.textContent = m; errorBanner.classList.add("show"); }
+function hideError(){ errorBanner.classList.remove("show"); }
+
+let user = null, stock = null, currentRef = null, currentCost = 0;
+let timerHandle = null, expiresAt = 0, isCancelled = false;
+
+const params = new URLSearchParams(window.location.search);
+const symbol = params.get("symbol");
+
+window.addEventListener("ri:ready", async function (e) {
+  user = e.detail;
+  if (!symbol) { window.location.href = "dashboard.html"; return; }
+
+  try {
+    const { stock: s } = await api.stock(symbol);
+    stock = s;
+    document.getElementById("stockName").textContent = s.name;
+    document.getElementById("stockTicker").textContent = s.symbol + " · " + s.exchange;
+    document.getElementById("stockPrice").textContent = fmt.currency(s.current_price);
+    const ch = document.getElementById("stockChange");
+    ch.textContent = (s.change_pct >= 0 ? "▲ " : "▼ ") + Math.abs(s.change_pct).toFixed(2) + "%";
+    ch.className = "change " + (s.change_pct >= 0 ? "up" : "down");
+    updateTotal();
+    await initiateBuy();
+  } catch (_) {
+    window.location.href = "dashboard.html";
+  }
+
+  try {
+    const { bank } = await api.getContent();
+    if (bank) {
+      document.getElementById("bankName").textContent = bank.bank_name;
+      document.getElementById("bankAccountName").textContent = bank.account_name;
+      document.getElementById("bankAccountNumber").textContent = bank.account_number;
+    }
+  } catch (_) {}
+});
+
+async function initiateBuy() {
+  hideError();
+  if (!stock) return;
+  const qty = Math.max(1, parseInt(document.getElementById("qty").value) || 1);
+  document.getElementById("qty").value = qty;
+  currentCost = Number((qty * stock.current_price).toFixed(2));
+
+  try {
+    const res = await api.buyInitiate({ symbol: stock.symbol, quantity: qty, method: "transfer" });
+    currentRef = res.reference;
+    document.getElementById("bankRef").textContent = currentRef;
+    startCountdown(300);
+    isCancelled = false;
+  } catch (err) {
+    showError(err.message);
+    document.getElementById("confirmTransfer").disabled = true;
+    currentRef = null;
+  }
+}
+
+function updateTotal() {
+  if (!stock) return;
+  const qty = Math.max(1, parseInt(document.getElementById("qty").value) || 1);
+  document.getElementById("qty").value = qty;
+  currentCost = Number((qty * stock.current_price).toFixed(2));
+  document.getElementById("total").textContent = fmt.currency(currentCost);
+}
+
+document.getElementById("qty").addEventListener("change", async () => {
+  if (currentRef) { api.buyCancel(currentRef).catch(() => {}); currentRef = null; }
+  document.getElementById("confirmTransfer").disabled = false;
+  updateTotal();
+  await initiateBuy();
+});
+document.getElementById("qtyMinus").addEventListener("click", () => {
+  document.getElementById("qty").value = Math.max(1, (parseInt(document.getElementById("qty").value) || 1) - 1);
+  document.getElementById("qty").dispatchEvent(new Event("change"));
+});
+document.getElementById("qtyPlus").addEventListener("click", () => {
+  document.getElementById("qty").value = (parseInt(document.getElementById("qty").value) || 1) + 1;
+  document.getElementById("qty").dispatchEvent(new Event("change"));
+});
+
+function startCountdown(seconds) {
+  if (timerHandle) clearInterval(timerHandle);
+  expiresAt = Date.now() + seconds * 1000;
+  updateCountdown();
+  timerHandle = setInterval(updateCountdown, 500);
+}
+function updateCountdown() {
+  const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+  const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
+  const ss = String(remaining % 60).padStart(2, "0");
+  document.getElementById("countdownTime").textContent = mm + ":" + ss;
+  const cd = document.getElementById("countdown");
+  if (remaining <= 60) cd.classList.add("warn");
+  if (remaining === 0 && !isCancelled) {
+    isCancelled = true;
+    clearInterval(timerHandle);
+    if (currentRef) api.buyCancel(currentRef).catch(() => {});
+    document.getElementById("bankRef").textContent = "—";
+    showError("Your reference has expired. Adjust quantity to start again.");
+    document.getElementById("confirmTransfer").disabled = true;
+  }
+}
+
+document.querySelectorAll(".pay-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".pay-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".pay-panel").forEach(p => p.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
+  });
+});
+
+document.getElementById("copyAcct").addEventListener("click", function () {
+  navigator.clipboard.writeText(document.getElementById("bankAccountNumber").textContent).then(() => {
+    const old = this.textContent; this.textContent = "Copied";
+    setTimeout(() => { this.textContent = old; }, 1500);
+  });
+});
+
+document.getElementById("confirmTransfer").addEventListener("click", async function () {
+  if (!currentRef || isCancelled) return;
+  hideError();
+  this.disabled = true;
+  this.textContent = "Submitting…";
+  try {
+    await api.buyTransferPaid(currentRef);
+    if (timerHandle) clearInterval(timerHandle);
+    document.getElementById("buyView").style.display = "none";
+    document.getElementById("successView").style.display = "flex";
+    document.getElementById("successDetail").textContent =
+      "Your order for " + document.getElementById("qty").value + " shares of " +
+      stock.symbol + " (" + fmt.currency(currentCost) + ") is awaiting confirmation.";
+  } catch (err) {
+    showError(err.message);
+    this.disabled = false;
+    this.textContent = "I've made the transfer";
+  }
+});
+
+document.getElementById("payWithCard").addEventListener("click", async function () {
+  hideError();
+  const qty = Math.max(1, parseInt(document.getElementById("qty").value) || 1);
+  currentCost = Number((qty * stock.current_price).toFixed(2));
+  this.disabled = true; this.textContent = "Opening…";
+  try {
+    const res = await api.buyInitiate({ symbol: stock.symbol, quantity: qty, method: "card" });
+    currentRef = res.reference;
+    payarModal.open({
+      reference: currentRef,
+      amount: currentCost,
+      email: user.email,
+      mode: "buy",
+      onComplete: function () {
+        document.getElementById("buyView").style.display = "none";
+        document.getElementById("successView").style.display = "flex";
+        document.getElementById("successTitle").textContent = "Payment submitted";
+        document.getElementById("successDetail").textContent =
+          "Your order for " + qty + " shares of " + stock.symbol + " is processing.";
+      }
+    });
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    this.disabled = false; this.textContent = "Pay with card";
+  }
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async function (e) {
+  e.preventDefault();
+  try { await api.logout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "login.html";
+});
+</script>
+</body>
+</html>
