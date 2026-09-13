@@ -4,32 +4,102 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Roland Invests</title>
+<meta name="description" content="" />
 <link rel="stylesheet" href="/css/app.css" />
+<style>
+  .hero{
+    padding:64px 0 40px;
+    display:grid;
+    grid-template-columns:1.1fr 0.9fr;
+    gap:56px;
+    align-items:center;
+  }
+  .hero h1{
+    font-family:var(--font-serif);
+    font-weight:600;
+    font-size:clamp(34px, 5vw, 54px);
+    line-height:1.08;
+    margin:0 0 20px;
+    max-width:11ch;
+  }
+  .hero p.lede{
+    font-size:17px;
+    line-height:1.6;
+    color:rgba(246,243,236,0.72);
+    max-width:46ch;
+    margin:0 0 32px;
+  }
+  .fineprint{ font-size:13px; color:rgba(246,243,236,0.5); }
+  .fineprint a{ color:var(--gold); text-decoration:underline; }
+  .chart-panel{
+    position:relative;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:var(--ink-soft);
+    padding:28px 24px 22px;
+  }
+  .chart-panel .label{
+    display:flex; justify-content:space-between; font-size:13px;
+    color:rgba(246,243,236,0.55); margin-bottom:18px;
+  }
+  .chart-panel .figure{ font-family:var(--font-serif); font-size:34px; margin:0 0 4px; }
+  .chart-panel .delta{ font-size:14px; margin:0 0 20px; }
+  .chart-panel .delta.up{ color:var(--sage); }
+  .chart-panel .delta.down{ color:var(--red); }
+  svg.spark{ width:100%; height:auto; display:block; }
+  @media (max-width:820px){
+    .hero{ grid-template-columns:1fr; padding:40px 0 32px; gap:36px; }
+    .hero h1{ max-width:none; }
+  }
+</style>
 </head>
 <body>
+
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="index.html"><em>Roland</em> Invests</a>
+    <a class="brand" href="index.html" data-brand><em>Roland</em> Invests</a>
   </div>
 </header>
 
 <main>
-  <div class="wrap" style="padding:80px 0;">
-    <h1 style="font-family:var(--font-serif); font-size:44px; margin:0 0 16px;">Put your naira to work.</h1>
-    <p style="color:var(--muted); font-size:17px; max-width:46ch; margin:0 0 32px;">
-      Buy and sell Nigerian and U.S. stocks from your phone or computer.
-      Start with as little as ₦1,000.
-    </p>
-    <div class="cta-row">
-      <a class="btn btn-primary" href="signup.html" style="width:auto;">Create your account</a>
-      <a class="btn btn-secondary" href="login.html" style="width:auto;">Log in</a>
+  <div class="wrap hero">
+    <div>
+      <h1 id="headline">Put your naira to work.</h1>
+      <p class="lede" id="subhead">
+        Buy and sell Nigerian and U.S. stocks from your phone or computer.
+        Start with as little as ₦1,000 — no broker, no paperwork.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="signup.html" style="width:auto;">Create your account</a>
+        <a class="btn btn-secondary" href="login.html" style="width:auto;">Log in</a>
+      </div>
+      <p class="fineprint" id="fineprint">Already investing with us? <a href="login.html">Log in</a> to continue.</p>
+    </div>
+
+    <div class="chart-panel" id="chartPanel" style="display:none;">
+      <div class="label">
+        <span id="tickName">—</span>
+        <span id="tickExchange">—</span>
+      </div>
+      <p class="figure" id="tickPrice">—</p>
+      <p class="delta" id="tickChange">—</p>
+      <svg class="spark" viewBox="0 0 300 90" fill="none" aria-hidden="true">
+        <polyline id="sparkline"
+          points="0,64 30,58 60,66 90,50 120,54 150,38 180,44 210,26 240,30 270,14 300,18"
+          stroke="#C9A24B" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
     </div>
   </div>
 </main>
 
 <footer>
   <div class="wrap">
-    <span>&copy; 2026 Roland Invests</span>
+    <div class="links">
+      <a href="#privacy">Privacy Policy</a>
+      <a href="#terms">Terms of Service</a>
+      <a href="#disclosures">Risk Disclosure</a>
+    </div>
+    <span data-copyright>© 2026 Roland Invests</span>
   </div>
 </footer>
 
@@ -37,6 +107,51 @@
 <script src="/js/format.js"></script>
 <script src="/js/api.js"></script>
 <script src="/js/site-meta.js"></script>
-<script>applySiteMeta("");</script>
+<script>
+applySiteMeta("");
+
+(async function () {
+  // Content
+  try {
+    const { content } = await api.getContent();
+    if (content["brand.name"]) {
+      document.querySelectorAll("[data-brand]").forEach(el => {
+        const parts = content["brand.name"].split(" ");
+        if (parts.length > 1) {
+          el.innerHTML = "<em>" + parts[0] + "</em> " + parts.slice(1).join(" ");
+        } else {
+          el.textContent = content["brand.name"];
+        }
+      });
+      document.querySelectorAll("[data-copyright]").forEach(el => {
+        el.textContent = "© 2026 " + content["brand.name"];
+      });
+      document.title = content["brand.name"];
+    }
+    if (content["landing.headline"]) document.getElementById("headline").textContent = content["landing.headline"];
+    if (content["landing.subhead"]) document.getElementById("subhead").textContent = content["landing.subhead"];
+    if (content["landing.fineprint"]) {
+      document.getElementById("fineprint").innerHTML =
+        content["landing.fineprint"].replace("Log in", '<a href="login.html">Log in</a>');
+    }
+  } catch (_) {}
+
+  // Featured stock
+  try {
+    const { stocks } = await api.stocks();
+    if (stocks && stocks.length) {
+      const s = stocks[0]; // backend orders featured first
+      document.getElementById("chartPanel").style.display = "block";
+      document.getElementById("tickName").textContent = s.name.toUpperCase() + " · " + s.symbol;
+      document.getElementById("tickExchange").textContent = s.exchange;
+      document.getElementById("tickPrice").textContent = fmt.currency(s.current_price);
+      const ch = document.getElementById("tickChange");
+      const sign = s.change_pct >= 0 ? "▲" : "▼";
+      ch.textContent = sign + " " + Math.abs(s.change_pct).toFixed(2) + "% today";
+      ch.className = "delta " + (s.change_pct >= 0 ? "up" : "down");
+    }
+  } catch (_) {}
+})();
+</script>
 </body>
 </html>
